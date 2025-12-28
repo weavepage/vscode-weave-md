@@ -162,6 +162,22 @@ vscode-weave-md/
 
 ---
 
+## Extension Activation & Performance
+
+### Activation Strategy
+- **Lazy activation**: Only activate when opening Weave documents (detected by frontmatter or file patterns)
+- **Activation events**: `onLanguage:markdown` + workspace file pattern detection
+- **Selective indexing**: Only parse files matching `weave.rootFile` and `weave.sectionsGlob` patterns
+- **Background processing**: Initial indexing runs in background without blocking UI
+
+### Performance Constraints
+- **Startup impact**: < 100ms activation time for non-Weave markdown files
+- **Indexing throttling**: Process files in batches with `setTimeout` delays to prevent UI blocking
+- **Memory limits**: Cache size limits with LRU eviction for large workspaces
+- **File watching**: Debounced file change handling (300ms default) to avoid excessive re-parsing
+
+---
+
 ## File discovery & project conventions
 Support two modes:
 1. **Convention-based (default)**
@@ -271,7 +287,19 @@ Store indices per file; derive global views from those indices:
 ### Communication Mechanisms
 - **Host-owned shared state**: in-memory cache of parsed/validated results accessible to both validation and preview render (same extension host process)
 - **VS Code APIs**: file watchers + document change events to update indices
-- **No “webview messages” dependency** for preview correctness
+- **Per-file indices**: `fileIndexByUri: Map<string, FileIndex>` for incremental correctness
+- **Derived global views**: `sectionsById`, `incomingRefs/outgoingRefs` maps computed from per-file indices
+- **Rendered HTML cache**: `cachedHtmlBySectionId: Map<string, CachedHtml>` for embedded expansions/overlays
+- **Invalidation rules**: update per-file index on file change; re-derive global views as needed; clear HTML cache for affected sections
+- **No "webview messages" dependency** for preview correctness
+
+### Optional/Experimental: Preview RPC (Non-blocking)
+> This section is optional and can be cut without changing core semantics.
+> 
+> Future analytics or advanced interactions could use preview-to-host messaging, but all core features must work without it. Any such implementation should be:
+> - Explicitly marked as experimental
+> - Non-blocking (extension continues working if messaging fails)
+> - Never required for correctness or basic functionality
 
 ---
 
@@ -282,12 +310,42 @@ Store indices per file; derive global views from those indices:
 
 ### Preview Layer Fallbacks
 Preview must always render *something*:
-- Missing/invalid `node:` target → render as normal link + minimal “missing” badge
-- Expansion suppressed by limits → render stub: “(Preview truncated) Open section…”
-- Cycle detected → render “Already expanded above → jump” affordance
+- Missing/invalid `node:` target → render as normal link + minimal "missing" badge
+- Expansion suppressed by limits → render stub: "(Preview truncated) Open section…"
+- Cycle detected → render "Already expanded above → jump" affordance
+- **Blocking errors**: disable Weave enhancements for affected constructs; preview still renders as normal Markdown
 - Severe errors → disable enhancements for affected constructs; keep standard markdown rendering
 
+### No-JS Fallback Behavior
+Preview remains usable without JavaScript:
+- **Static rendering**: All embedded content is pre-rendered in HTML during markdown-it processing
+- **Basic navigation**: `node:` links render as standard markdown links to section files
+- **Content visibility**: Inline and stretch content shows fully; overlay content appears as collapsed sections with "Expand" text
+- **Numbering**: Footnote/sidenote numbers are pre-generated and embedded in HTML
+- **Math formatting**: KaTeX renders to static HTML/CSS without requiring runtime JavaScript
+- **Critical rule**: All core functionality works without JavaScript; JS only enhances interactivity
+
 **Critical rule:** preview never hard-fails; it degrades to standard Markdown semantics.
+
+### Error Categories
+1. **Blocking Errors** (disable Weave enhancements for affected constructs):
+   - Missing required frontmatter
+   - Invalid YAML structure in media blocks
+   - Corrupted AST parsing
+
+2. **Warning Errors** (show warnings, keep preview):
+   - Unknown frontmatter fields
+   - Unknown node: URL parameters
+   - Missing optional media fields
+
+3. **Info Messages** (log only):
+   - Successful conformance validation
+   - Performance metrics
+
+### Recovery Strategies
+- **Automatic retry**: re-validate on file change/save after errors are fixed
+- **Graceful degradation**: downgrade to stub rendering when limits are reached
+- **Incremental healing**: fix individual construct errors without disabling entire preview
 
 ---
 
@@ -365,6 +423,19 @@ if (['image', 'gallery', 'audio', 'video', 'embed', 'voiceover'].includes(token.
   - Expanded content contributes when visible (or always; pick one and keep consistent)
   - Overlay-only content does not affect numbering
 
+### Preview Click Behavior
+- **Built-in preview**: `node:` links render as standard markdown links using VS Code's link resolution
+- **Link format**: Generate standard markdown links `[text](section-file.md#frontmatter)` or `[text](section-file.md)`
+- **Navigation**: Clicking opens the target section file in editor (VS Code's default link behavior)
+- **No command links**: Avoid `command:weave.goto` format; rely on standard markdown link semantics
+- **Editor providers**: Go-to-definition and peek functionality handled by language providers, not preview clicks
+
+### Link Format Constraints
+- **Standard links only**: Use `file://` or relative path links that VS Code's preview can resolve natively
+- **No custom protocols**: Avoid `weave://` or `command://` schemes in preview HTML
+- **Fallback URLs**: If section file cannot be determined, render as plain text without link formatting
+- **Cross-file references**: All `node:` references must resolve to actual file paths in the workspace
+
 ### Performance Considerations
 - Render-time embedding must be bounded:
   - `weave.maxPreviewDepth` default: 3
@@ -410,18 +481,169 @@ The extension must provide basic preview support for Weave format elements:
 Use VS Code's built-in language provider APIs rather than a full language server.
 
 ### 1. Completion Provider
-- Node link completion (`node:` + IDs + params)
-- Frontmatter completion (`id`, `title`, `peek`, etc.)
+
+**Node Link Completion**:
+```typescript
+class WeaveCompletionProvider implements vscode.CompletionItemProvider {
+  provideCompletionItems(
+    document: vscode.TextDocument, 
+    position: vscode.Position
+  ): vscode.CompletionItem[] {
+    const line = document.lineAt(position).text
+    const beforeCursor = line.substring(0, position.character)
+    
+    // Stage 1: Suggest "node:" when starting a link
+    const linkMatch = beforeCursor.match(/]\((n|no|nod|node)$/)
+    if (linkMatch) {
+      return [
+        { 
+          label: 'node:', 
+          kind: vscode.CompletionItemKind.Reference,
+          insertText: 'node:',
+          documentation: 'Weave node reference'
+        }
+      ]
+    }
+    
+    // Stage 2: Node: ID completion - triggers after "node:"
+    if (beforeCursor.includes('node:')) {
+      return getSectionIds().map(id => ({
+        label: id,
+        kind: vscode.CompletionItemKind.Reference,
+        insertText: id,
+        documentation: `Section: ${id}`
+      }))
+    }
+    
+    // Stage 3: Parameter completion - triggers after "?"
+    if (beforeCursor.includes('node:') && beforeCursor.includes('?')) {
+      return [
+        { label: 'display', kind: vscode.CompletionItemKind.Property },
+        { label: 'export', kind: vscode.CompletionItemKind.Property }
+      ]
+    }
+    
+    return []
+  }
+}
+
+// Register with trigger characters
+vscode.languages.registerCompletionItemProvider(
+  'markdown', 
+  new WeaveCompletionProvider(), 
+  'n', ':', '?', '='
+)
+```
+
+**Frontmatter Completion**:
+```typescript
+// Inside YAML frontmatter (detect by context)
+if (isInFrontmatter(document, position)) {
+  return [
+    { label: 'id', kind: vscode.CompletionItemKind.Field },
+    { label: 'title', kind: vscode.CompletionItemKind.Field },
+    { label: 'peek', kind: vscode.CompletionItemKind.Field }
+  ]
+}
+```
 
 ### 2. Hover Provider
-- Hovering a `node:` link shows `peek` / excerpt
+
+**Section Preview on Hover**:
+```typescript
+class WeaveHoverProvider implements vscode.HoverProvider {
+  provideHover(
+    document: vscode.TextDocument, 
+    position: vscode.Position
+  ): vscode.Hover {
+    // Use regex that captures full node: URL including hyphens and query params
+    const range = document.getWordRangeAtPosition(position, /node:[\w-]+(?:\?[^)\]\s]*)*/)
+    if (range) {
+      // Parse using @weave-md/core for proper URL handling
+      const parsed = parseNodeUrl(document.getText(range))
+      if (parsed) {
+        const section = getSectionById(parsed.id)
+        if (section?.peek) {
+          return new vscode.Hover(section.peek, range)
+        }
+      }
+    }
+  }
+}
+```
 
 ### 3. Definition Provider
-- Go-to-definition to section frontmatter range
+
+**Go to Section Definition**:
+```typescript
+class WeaveDefinitionProvider implements vscode.DefinitionProvider {
+  provideDefinition(
+    document: vscode.TextDocument, 
+    position: vscode.Position
+  ): vscode.Location {
+    const range = document.getWordRangeAtPosition(position, /node:\w+/)
+    if (range) {
+      const nodeId = range.text.replace('node:', '')
+      const section = getSectionById(nodeId)
+      if (section?.uri) {
+        return new vscode.Location(section.uri, section.frontmatterRange)
+      }
+    }
+  }
+}
+```
 
 ### 4. Diagnostics Provider
-- Real-time diagnostics for invalid frontmatter, invalid/missing targets, invalid params
-- Full AST conformance diagnostics on demand
+
+**Real-time Validation**:
+```typescript
+class WeaveDiagnosticProvider {
+  validateDocument(document: vscode.TextDocument): vscode.Diagnostic[] {
+    const diagnostics: vscode.Diagnostic[] = []
+    
+    // Check for missing frontmatter
+    if (!hasFrontmatter(document)) {
+      diagnostics.push(new vscode.Diagnostic(
+        new vscode.Range(0, 0, 0, 0),
+        'Weave documents must start with YAML frontmatter',
+        vscode.DiagnosticSeverity.Error
+      ))
+    }
+    
+    // Validate node: links (using text scanner for accurate ranges)
+    const nodeLinks = findNodeLinks(document)
+    for (const link of nodeLinks) {
+      if (!getSectionById(link.targetId)) {
+        diagnostics.push(new vscode.Diagnostic(
+          link.range,
+          `Section '${link.targetId}' not found`,
+          vscode.DiagnosticSeverity.Error
+        ))
+      }
+    }
+    
+    return diagnostics
+  }
+}
+```
+
+### 5. Data Sources for Language Features
+
+**From Validation Layer**:
+- `getSectionIds()` - Array of valid section IDs
+- `getSectionById(id)` - Section metadata and URI
+- `getWorkspaceGraph()` - Complete reference graph
+
+**From Spec**:
+- Parameter enums (`display`, `export` values)
+- Frontmatter field definitions
+- Validation rules
+
+**Benefits of Direct Implementation**:
+- **Simpler**: No separate language server process
+- **Integrated**: Uses same validation layer data
+- **Performant**: Low overhead, fast response
+- **Maintainable**: All in one extension
 
 ---
 
@@ -430,16 +652,28 @@ Use VS Code's built-in language provider APIs rather than a full language server
 ### Commands
 - `Weave: Go to Section Definition`
   - works in editor via cursor/selection on `node:`
+  - in built-in preview, clicking renders as normal link; navigation handled by editor provider
 - `Weave: Peek Section`
+  - show peek text (or excerpt) in a quick pick / hover
 - `Weave: Show Backlinks (1 hop)`
+  - list incoming references to the current section
+  - select → open referring file at the reference occurrence
 - `Weave: Full Conformance Check`
+  - Run comprehensive AST validation using `@weave-md/parse`
+  - Deep conformance checking and edge case detection
+  - Shows detailed results in Problems panel
 - `Weave: Validate Workspace`
+  - Quick validation using `@weave-md/validate`
+  - Fast syntax and structure check
+  - Immediate feedback on common issues
 
 ### Diagnostics
-- Problems panel entries with codes (`WEAVE001`, `WEAVE002`, …)
+- Problems panel entries with:
+  - code: `WEAVE001`, `WEAVE002`, …
+  - message, severity, and a suggested fix
 - Quick fixes (CodeActions):
-  - Create missing section file stub
-  - Rename duplicate IDs (guided; potentially unsafe)
+  - Create missing section file stub for missing target
+  - Rename duplicate IDs (guided; may be "unsafe")
   - Remove unknown query params
 
 ### Settings
@@ -458,7 +692,7 @@ Use VS Code's built-in language provider APIs rather than a full language server
 ### Unit tests (Node)
 - Frontmatter parsing and ID extraction (per spec validation rules)
 - `node:` URL parsing (delegate to `@weave-md/core`)
-- Text-based occurrence scanning for accurate ranges
+- Text-based occurrence scanning for accurate ranges (not markdown-it tokens)
 - Graph construction correctness (incremental updates)
 - Diagnostics generation (golden tests with fixtures)
 - Weave format element parsing (math blocks, media blocks, etc.)
@@ -469,9 +703,11 @@ Use VS Code's built-in language provider APIs rather than a full language server
   - open fixture workspace
   - verify diagnostics count and codes
   - verify commands open correct files
-  - smoke test preview injection (scripts/styles loaded)
-  - test display modes render correctly (baseline)
-  - test Weave format elements render in preview (baseline)
+  - **Preview tests**: token/HTML golden tests for markdown-it plugin output
+  - **Preview smoke tests**: verify scripts/styles load (limited DOM interaction)
+  - test display modes render correctly (baseline HTML output)
+  - test Weave format elements render in preview (baseline HTML output)
+  - test cycle safety and truncation limits in rendered output
 
 ---
 
@@ -483,31 +719,34 @@ Use VS Code's built-in language provider APIs rather than a full language server
 - Basic diagnostics: duplicate IDs, missing targets (coarse)
 
 ### M1 — Validator UX
-- Accurate reference extraction with ranges
+- Accurate reference extraction with text scanner for editor ranges
 - Full diagnostics + codes
 - Quick fixes: create missing section stub
-- Spec conformance: pass frontmatter and node-link conformance tests
+- **Spec conformance**: pass all frontmatter and node-link conformance tests
 
 ### M2 — Preview enhancements (baseline)
 - Markdown-it plugin rewrites `node:` links in preview
 - Expand/collapse inline (render-time embedded bodies + DOM toggle)
 - Cycle-safe expansion (render-time)
 - Basic depth styling
-- Display modes: support spec display modes with native-preview-friendly UX
-- Numbering: implement footnote/sidenote numbering semantics
+- **Display modes**: support spec display modes with native-preview-friendly UX
+- **Numbering**: implement footnote/sidenote numbering semantics
+- **Acceptance criteria**: No preview RPC required for correctness
 
 ### M3 — Navigation polish
-- Go-to-definition from editor providers
+- Go-to-definition from editor providers (preview clicks are normal links)
 - Peek section
 - Backlinks (1 hop)
 - Weave format support: math + basic media + text formatting
+- **Acceptance criteria**: Depth/size limits enforced, cycle-safe in renderer
 
 ### M4 — "Standard credibility" hardening
 - Performance pass (incremental updates, debouncing, embedding limits)
 - Robustness on large docs
 - Better error messaging and docs
-- Full spec conformance: 100% pass rate on conformance test suite
+- **Full spec conformance**: 100% pass rate on conformance test suite
 - Publish to Marketplace + versioning policy
+- **Acceptance criteria**: All core features work without preview RPC
 
 ---
 
