@@ -1,7 +1,22 @@
 import * as vscode from 'vscode';
 import { Section, ReferenceOccurrence, getIndexStore } from './indexStore';
-import { parseNodeUrl as coreParseNodeUrl, NodeRef, DisplayType, Link, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
+import { parseNodeUrl as coreParseNodeUrl, DisplayType, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
 import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
+
+/**
+ * Converts a @weave-md/core Diagnostic to VS Code Diagnostic
+ */
+function toVscodeDiagnostic(diag: WeaveDiagnostic): vscode.Diagnostic {
+  const pos = diag.position 
+    ? new vscode.Position(diag.position.line - 1, diag.position.character) 
+    : new vscode.Position(0, 0);
+  const severity = diag.severity === 'error' 
+    ? vscode.DiagnosticSeverity.Error
+    : diag.severity === 'warning' 
+    ? vscode.DiagnosticSeverity.Warning
+    : vscode.DiagnosticSeverity.Information;
+  return new vscode.Diagnostic(new vscode.Range(pos, pos), diag.message, severity);
+}
 
 /**
  * Parsed node: URL structure (re-exported from @weave-md/core)
@@ -140,11 +155,7 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
   
   // Convert weave diagnostics to VS Code diagnostics
   for (const diag of fmDiagnostics) {
-    const pos = diag.position ? new vscode.Position(diag.position.line - 1, diag.position.character) : new vscode.Position(0, 0);
-    const severity = diag.severity === 'error' ? vscode.DiagnosticSeverity.Error
-      : diag.severity === 'warning' ? vscode.DiagnosticSeverity.Warning
-      : vscode.DiagnosticSeverity.Information;
-    diagnostics.push(new vscode.Diagnostic(new vscode.Range(pos, pos), diag.message, severity));
+    diagnostics.push(toVscodeDiagnostic(diag));
   }
 
   // Check for missing frontmatter
@@ -198,11 +209,7 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
 
   // Convert link diagnostics to VS Code diagnostics
   for (const diag of linkDiagnostics) {
-    const pos = diag.position ? new vscode.Position(diag.position.line - 1, diag.position.character) : new vscode.Position(0, 0);
-    const severity = diag.severity === 'error' ? vscode.DiagnosticSeverity.Error
-      : diag.severity === 'warning' ? vscode.DiagnosticSeverity.Warning
-      : vscode.DiagnosticSeverity.Information;
-    diagnostics.push(new vscode.Diagnostic(new vscode.Range(pos, pos), diag.message, severity));
+    diagnostics.push(toVscodeDiagnostic(diag));
   }
 
   for (const link of nodeLinks) {
