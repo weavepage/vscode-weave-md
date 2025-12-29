@@ -1,15 +1,14 @@
 import * as vscode from 'vscode';
 import { Section, ReferenceOccurrence, getIndexStore } from './indexStore';
-// Note: Temporarily commenting out ES module imports until we find a solution
-// import { parseNodeUrl as coreParseNodeUrl, NodeRef, DisplayType, ExportHint } from '@weave-md/core';
-// import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
+import { parseNodeUrl as coreParseNodeUrl, NodeRef, DisplayType, Link, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
+import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
 
 /**
- * Parsed node: URL structure
+ * Parsed node: URL structure (re-exported from @weave-md/core)
  */
 export interface ParsedNodeUrl {
   id: string;
-  display?: 'footnote' | 'sidenote' | 'margin' | 'overlay' | 'inline' | 'stretch' | 'page';
+  display?: DisplayType;
   export?: 'appendix' | 'inline' | 'omit';
   unknownParams: Map<string, string>;
 }
@@ -24,107 +23,88 @@ export interface ValidationResult {
 }
 
 /**
- * Parses a node: URL and extracts its components
+ * Parses a node: URL and extracts its components using @weave-md/core
  */
 export function parseNodeUrl(href: string): ParsedNodeUrl | null {
-  if (!href.startsWith('node:')) {
-    return null;
-  }
-
-  const withoutPrefix = href.slice(5);
-  const [idPart, queryString] = withoutPrefix.split('?');
+  const parseResult = coreParseNodeUrl(href);
   
-  // Empty target is invalid
-  if (!idPart) {
+  if (!parseResult.success) {
     return null;
   }
 
-  const result: ParsedNodeUrl = {
-    id: idPart,
-    unknownParams: new Map()
-  };
+  const ref = parseResult.ref;
+  const unknownParams = new Map<string, string>();
+  
+  // Collect unknown params (any key that's not id, display, or export)
+  for (const [key, value] of Object.entries(ref)) {
+    if (key !== 'id' && key !== 'display' && key !== 'export' && value !== undefined) {
+      unknownParams.set(key, String(value));
+    }
+  }
 
-  if (queryString) {
-    const params = new URLSearchParams(queryString);
-    for (const [key, value] of params) {
-      if (key === 'display') {
-        result.display = value as any;
-      } else if (key === 'export') {
-        result.export = value as any;
-      } else {
-        result.unknownParams.set(key, value);
+  return {
+    id: ref.id,
+    display: ref.display,
+    export: ref.export,
+    unknownParams
+  };
+}
+
+/**
+ * Extracts frontmatter from markdown content using @weave-md/validate
+ */
+export function extractFrontmatter(content: string): { frontmatter: Record<string, unknown> | null; bodyStart: number; frontmatterRange?: { start: number; end: number }; diagnostics: WeaveDiagnostic[] } {
+  const result = parseFrontmatter(content);
+  
+  if (!result.frontmatter) {
+    return { frontmatter: null, bodyStart: 0, diagnostics: result.diagnostics };
+  }
+
+  const bodyStart = content.length - result.body.length;
+  return {
+    frontmatter: result.frontmatter,
+    bodyStart,
+    frontmatterRange: { start: 0, end: bodyStart },
+    diagnostics: result.diagnostics
+  };
+}
+
+/**
+ * Finds all node: links in a document with their ranges using @weave-md/validate
+ */
+export function findNodeLinks(document: vscode.TextDocument): { links: Array<{ targetId: string; range: vscode.Range; rawHref: string; parsed: ParsedNodeUrl }>; diagnostics: WeaveDiagnostic[] } {
+  const text = document.getText();
+  const result = extractNodeLinks(text, document.uri.fsPath);
+  
+  const links: Array<{ targetId: string; range: vscode.Range; rawHref: string; parsed: ParsedNodeUrl }> = [];
+  
+  for (const link of result.links) {
+    const startPos = new vscode.Position(link.start.line - 1, link.start.character);
+    const endPos = new vscode.Position(link.end.line - 1, link.end.character);
+    const range = new vscode.Range(startPos, endPos);
+    
+    // Convert NodeRef to ParsedNodeUrl format
+    const unknownParams = new Map<string, string>();
+    for (const [key, value] of Object.entries(link.ref)) {
+      if (key !== 'id' && key !== 'display' && key !== 'export' && value !== undefined) {
+        unknownParams.set(key, String(value));
       }
     }
-  }
-
-  return result;
-}
-
-/**
- * Extracts frontmatter from markdown content
- */
-export function extractFrontmatter(content: string): { frontmatter: Record<string, unknown> | null; bodyStart: number; frontmatterRange?: { start: number; end: number } } {
-  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?/;
-  const match = content.match(frontmatterRegex);
-
-  if (!match) {
-    return { frontmatter: null, bodyStart: 0 };
-  }
-
-  try {
-    const yaml = require('yaml');
-    const frontmatter = yaml.parse(match[1]) as Record<string, unknown>;
-    const endIndex = match[0].length;
-    return {
-      frontmatter,
-      bodyStart: endIndex,
-      frontmatterRange: { start: 0, end: endIndex }
-    };
-  } catch {
-    return { frontmatter: null, bodyStart: 0 };
-  }
-}
-
-/**
- * Finds all node: links in a document with their ranges
- */
-export function findNodeLinks(document: vscode.TextDocument): Array<{ targetId: string; range: vscode.Range; rawHref: string; parsed: ParsedNodeUrl }> {
-  const links: Array<{ targetId: string; range: vscode.Range; rawHref: string; parsed: ParsedNodeUrl }> = [];
-  const text = document.getText();
-  
-  // Match markdown links with node: URLs
-  const linkRegex = /\[([^\]]*)\]\((node:[^)\s]*)\)/g;
-  let match;
-
-  while ((match = linkRegex.exec(text)) !== null) {
-    const rawHref = match[2];
-    const parsed = parseNodeUrl(rawHref);
     
-    if (parsed) {
-      const startPos = document.positionAt(match.index);
-      const endPos = document.positionAt(match.index + match[0].length);
-      
-      links.push({
-        targetId: parsed.id,
-        range: new vscode.Range(startPos, endPos),
-        rawHref,
-        parsed
-      });
-    } else {
-      // Invalid node: URL (e.g., empty target)
-      const startPos = document.positionAt(match.index);
-      const endPos = document.positionAt(match.index + match[0].length);
-      
-      links.push({
-        targetId: '',
-        range: new vscode.Range(startPos, endPos),
-        rawHref,
-        parsed: null as any
-      });
-    }
+    links.push({
+      targetId: link.ref.id,
+      range,
+      rawHref: `node:${link.ref.id}`,
+      parsed: {
+        id: link.ref.id,
+        display: link.ref.display,
+        export: link.ref.export,
+        unknownParams
+      }
+    });
   }
 
-  return links;
+  return { links, diagnostics: result.errors };
 }
 
 /**
@@ -156,7 +136,16 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
   const text = document.getText();
 
   // Extract frontmatter
-  const { frontmatter, bodyStart, frontmatterRange } = extractFrontmatter(text);
+  const { frontmatter, bodyStart, frontmatterRange, diagnostics: fmDiagnostics } = extractFrontmatter(text);
+  
+  // Convert weave diagnostics to VS Code diagnostics
+  for (const diag of fmDiagnostics) {
+    const pos = diag.position ? new vscode.Position(diag.position.line - 1, diag.position.character) : new vscode.Position(0, 0);
+    const severity = diag.severity === 'error' ? vscode.DiagnosticSeverity.Error
+      : diag.severity === 'warning' ? vscode.DiagnosticSeverity.Warning
+      : vscode.DiagnosticSeverity.Information;
+    diagnostics.push(new vscode.Diagnostic(new vscode.Range(pos, pos), diag.message, severity));
+  }
 
   // Check for missing frontmatter
   if (!frontmatter) {
@@ -203,21 +192,20 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
   }
 
   // Find and validate node: links
-  const nodeLinks = findNodeLinks(document);
+  const { links: nodeLinks, diagnostics: linkDiagnostics } = findNodeLinks(document);
   const indexStore = getIndexStore();
   const currentSectionId = frontmatter?.id as string || 'main';
 
-  for (const link of nodeLinks) {
-    // Handle completely empty node: targets
-    if (!link.parsed) {
-      diagnostics.push(new vscode.Diagnostic(
-        link.range,
-        'Empty node: target. Expected format: node:section-id',
-        vscode.DiagnosticSeverity.Error
-      ));
-      continue;
-    }
+  // Convert link diagnostics to VS Code diagnostics
+  for (const diag of linkDiagnostics) {
+    const pos = diag.position ? new vscode.Position(diag.position.line - 1, diag.position.character) : new vscode.Position(0, 0);
+    const severity = diag.severity === 'error' ? vscode.DiagnosticSeverity.Error
+      : diag.severity === 'warning' ? vscode.DiagnosticSeverity.Warning
+      : vscode.DiagnosticSeverity.Information;
+    diagnostics.push(new vscode.Diagnostic(new vscode.Range(pos, pos), diag.message, severity));
+  }
 
+  for (const link of nodeLinks) {
     references.push({
       fromId: currentSectionId,
       toId: link.targetId,

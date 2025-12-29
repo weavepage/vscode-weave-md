@@ -1,8 +1,6 @@
 import * as vscode from 'vscode';
 import { getIndexStore } from './indexStore';
-// Temporarily commenting out ES module imports until we find a solution
-// import { parseWeaveDocument, WeaveParseError } from '@weave-md/parse';
-// import { Diagnostic as WeaveDiagnostic, DiagnosticSeverity } from '@weave-md/core';
+import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError, Diagnostic as WeaveDiagnostic } from '@weave-md/parse';
 
 /**
  * Full AST Validator using @weave-md/parse for comprehensive validation
@@ -16,12 +14,38 @@ export class FullAstValidator {
   }
 
   /**
-   * Performs full AST validation on a document
+   * Performs full AST validation on a document using @weave-md/parse
    */
   public validate(document: vscode.TextDocument): void {
-    // TODO: Implement full AST validation once ES module import issue is resolved
-    // For now, just clear any existing diagnostics
-    this.diagnosticCollection.set(document.uri, []);
+    const text = document.getText();
+    const diagnostics: vscode.Diagnostic[] = [];
+
+    try {
+      const result = parseWeaveDocument(text, { filePath: document.uri.fsPath });
+      
+      // Convert any diagnostics from the parse result
+      if (result.diagnostics) {
+        for (const diag of result.diagnostics) {
+          diagnostics.push(this.toVscodeDiagnostic(diag));
+        }
+      }
+    } catch (error) {
+      if (error instanceof WeaveParseError) {
+        diagnostics.push(new vscode.Diagnostic(
+          new vscode.Range(0, 0, 0, 0),
+          error.message,
+          vscode.DiagnosticSeverity.Error
+        ));
+      } else if (error instanceof WeaveDiagnosticsError) {
+        for (const diag of error.diagnostics) {
+          diagnostics.push(this.toVscodeDiagnostic(diag));
+        }
+      } else {
+        console.error('Unexpected error during AST validation:', error);
+      }
+    }
+
+    this.diagnosticCollection.set(document.uri, diagnostics);
   }
 
   /**
