@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError } from '@weave-md/parse';
+import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError, Diagnostic as WeaveDiagnostic } from '@weave-md/parse';
 
 /**
  * Full AST Validator using @weave-md/parse for comprehensive validation
@@ -72,7 +72,7 @@ export class FullAstValidator {
   /**
    * Converts a @weave-md/core Diagnostic to VS Code Diagnostic
    */
-  private toVscodeDiagnostic(diag: any): vscode.Diagnostic {
+  private toVscodeDiagnostic(diag: WeaveDiagnostic): vscode.Diagnostic {
     const line = diag.position?.line ?? 1;
     const char = diag.position?.character ?? 0;
     const startPos = new vscode.Position(line - 1, char);
