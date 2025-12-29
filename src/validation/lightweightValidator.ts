@@ -229,10 +229,12 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
     // Check for unknown parameters
     if (link.parsed.unknownParams.size > 0) {
       const unknownKeys = Array.from(link.parsed.unknownParams.keys()).join(', ');
+      const config = vscode.workspace.getConfiguration('weave');
+      const strict = config.get<boolean>('strictNodeParams', false);
       diagnostics.push(new vscode.Diagnostic(
         link.range,
         `Unknown node: URL parameters: ${unknownKeys}`,
-        vscode.DiagnosticSeverity.Warning
+        strict ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information
       ));
     }
 

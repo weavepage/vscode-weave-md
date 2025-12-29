@@ -92,6 +92,11 @@
           "type": "boolean",
           "default": true,
           "description": "Show intent labels (e.g. [Sidenote], [Margin Note]) for display modes that fall back to inline"
+        },
+        "weave.strictNodeParams": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat unknown node: URL parameters as warnings (true) instead of informational messages (false)"
         }
       }
     },

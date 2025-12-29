@@ -11,7 +11,7 @@ A spec-compliant preview renderer, validator, and navigation helper for Weave do
 
 ### Preview Enhancements
 - Expandable `node:` references in VS Code's built-in Markdown preview
-- Support for all display modes: inline, stretch, overlay, footnote, sidenote, margin
+- Support for all display modes: inline, stretch, overlay, footnote, sidenote, margin, page
 - Math rendering with KaTeX
 - Media blocks: image, gallery, audio, video
 - Cycle-safe expansion with depth limits
@@ -69,6 +69,7 @@ With export hint: [reference](node:intro?export=include)
 - `footnote` - Numbered footnote at bottom
 - `sidenote` - Numbered note in margin
 - `margin` - Unnumbered margin note
+- `page` - Full page reference
 
 ## Commands
 
