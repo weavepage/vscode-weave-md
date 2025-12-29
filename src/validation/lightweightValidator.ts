@@ -39,30 +39,45 @@ export interface ValidationResult {
 
 /**
  * Parses a node: URL and extracts its components using @weave-md/core
+ * Returns null only if the URL doesn't start with node: or has no ID
  */
 export function parseNodeUrl(href: string): ParsedNodeUrl | null {
   const parseResult = coreParseNodeUrl(href);
   
-  if (!parseResult.success) {
-    return null;
-  }
+  if (parseResult.success) {
+    const ref = parseResult.ref;
+    const unknownParams = new Map<string, string>();
+    
+    // Collect unknown params (any key that's not id, display, or export)
+    for (const [key, value] of Object.entries(ref)) {
+      if (key !== 'id' && key !== 'display' && key !== 'export' && value !== undefined) {
+        unknownParams.set(key, String(value));
+      }
+    }
 
-  const ref = parseResult.ref;
-  const unknownParams = new Map<string, string>();
+    return {
+      id: ref.id,
+      display: ref.display,
+      export: ref.export,
+      unknownParams
+    };
+  }
   
-  // Collect unknown params (any key that's not id, display, or export)
-  for (const [key, value] of Object.entries(ref)) {
-    if (key !== 'id' && key !== 'display' && key !== 'export' && value !== undefined) {
-      unknownParams.set(key, String(value));
+  // Fallback: extract ID even if params are invalid (for navigation)
+  if (href.startsWith('node:')) {
+    const urlStr = href.slice(5);
+    const [id] = urlStr.split('?');
+    if (id) {
+      return {
+        id,
+        display: undefined,
+        export: undefined,
+        unknownParams: new Map()
+      };
     }
   }
-
-  return {
-    id: ref.id,
-    display: ref.display,
-    export: ref.export,
-    unknownParams
-  };
+  
+  return null;
 }
 
 /**

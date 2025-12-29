@@ -9,6 +9,8 @@ import { createWeavePlugin, createWeaveFormatPlugin } from './preview/markdownIt
 import { registerCompletionProvider } from './languageFeatures/completionProvider';
 import { registerHoverProvider } from './languageFeatures/hoverProvider';
 import { registerDefinitionProvider } from './languageFeatures/definitionProvider';
+import { registerDocumentLinkProvider } from './languageFeatures/documentLinkProvider';
+import { registerReferenceProvider } from './languageFeatures/referenceProvider';
 import { registerGotoDefinitionCommand } from './commands/gotoDefinition';
 import { registerPeekSectionCommand } from './commands/peekSection';
 import { registerShowBacklinksCommand } from './commands/showBacklinks';
@@ -17,6 +19,7 @@ import { debounce } from './util/debounce';
 let validator: LightweightValidator | undefined;
 let fullAstValidator: FullAstValidator | undefined;
 let diagnosticsProvider: DiagnosticsProvider | undefined;
+let isIndexingWorkspace = false;
 
 /**
  * Extension activation
@@ -33,6 +36,8 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt: 
   registerCompletionProvider(context);
     registerHoverProvider(context);
     registerDefinitionProvider(context);
+    registerDocumentLinkProvider(context);
+    registerReferenceProvider(context);
     registerGotoDefinitionCommand(context);
     registerPeekSectionCommand(context);
     registerShowBacklinksCommand(context);
@@ -134,10 +139,10 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
     })
   );
 
-  // Validate on document open
+  // Validate on document open (skip during initial workspace indexing)
   context.subscriptions.push(
     vscode.workspace.onDidOpenTextDocument(document => {
-      if (document.languageId === 'markdown') {
+      if (!isIndexingWorkspace && document.languageId === 'markdown') {
         validator?.validate(document);
       }
     })
@@ -184,6 +189,7 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
  * Indexes all Weave files in the workspace
  */
 async function indexWorkspace(): Promise<void> {
+  isIndexingWorkspace = true;
   try {
     const config = vscode.workspace.getConfiguration('weave');
     const sectionsGlob = config.get<string>('sectionsGlob', 'sections/**/*.md');
@@ -215,5 +221,7 @@ async function indexWorkspace(): Promise<void> {
   } catch (error) {
     console.error('indexWorkspace failed:', error);
     throw error;
+  } finally {
+    isIndexingWorkspace = false;
   }
 }
