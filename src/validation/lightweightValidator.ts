@@ -34,6 +34,7 @@ export function parseNodeUrl(href: string): ParsedNodeUrl | null {
   const withoutPrefix = href.slice(5);
   const [idPart, queryString] = withoutPrefix.split('?');
   
+  // Empty target is invalid
   if (!idPart) {
     return null;
   }
@@ -92,7 +93,7 @@ export function findNodeLinks(document: vscode.TextDocument): Array<{ targetId: 
   const text = document.getText();
   
   // Match markdown links with node: URLs
-  const linkRegex = /\[([^\]]*)\]\((node:[^)\s]+)\)/g;
+  const linkRegex = /\[([^\]]*)\]\((node:[^)\s]*)\)/g;
   let match;
 
   while ((match = linkRegex.exec(text)) !== null) {
@@ -108,6 +109,17 @@ export function findNodeLinks(document: vscode.TextDocument): Array<{ targetId: 
         range: new vscode.Range(startPos, endPos),
         rawHref,
         parsed
+      });
+    } else {
+      // Invalid node: URL (e.g., empty target)
+      const startPos = document.positionAt(match.index);
+      const endPos = document.positionAt(match.index + match[0].length);
+      
+      links.push({
+        targetId: '',
+        range: new vscode.Range(startPos, endPos),
+        rawHref,
+        parsed: null as any
       });
     }
   }
@@ -196,6 +208,16 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
   const currentSectionId = frontmatter?.id as string || 'main';
 
   for (const link of nodeLinks) {
+    // Handle completely empty node: targets
+    if (!link.parsed) {
+      diagnostics.push(new vscode.Diagnostic(
+        link.range,
+        'Empty node: target. Expected format: node:section-id',
+        vscode.DiagnosticSeverity.Error
+      ));
+      continue;
+    }
+
     references.push({
       fromId: currentSectionId,
       toId: link.targetId,
