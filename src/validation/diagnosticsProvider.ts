@@ -1,10 +1,6 @@
 import * as vscode from 'vscode';
 import { getIndexStore } from './indexStore';
-
-// Temporarily using manual types until ES module import issue is resolved
-export const SPEC_VERSION = '0.1.0';
-export type DisplayType = 'footnote' | 'sidenote' | 'margin' | 'overlay' | 'inline' | 'stretch' | 'page';
-export type ExportHint = 'appendix' | 'inline' | 'omit';
+import { DisplayType, ExportHint } from '@weave-md/core';
 
 /**
  * Valid display modes
