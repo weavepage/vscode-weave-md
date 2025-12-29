@@ -45,7 +45,9 @@ export function matchesGlob(uri: vscode.Uri, pattern: string): boolean {
 function createMinimatch(pattern: string): (path: string) => boolean {
   const regexPattern = pattern
     .replace(/\*\*/g, '{{GLOBSTAR}}')
-    .replace(/\*/g, '[^/]*')
+    .replace(/\*/g, '{{STAR}}')
+    .replace(/[.+?^${}()|[\]\\]/g, '\\$&')
+    .replace(/{{STAR}}/g, '[^/]*')
     .replace(/{{GLOBSTAR}}/g, '.*')
     .replace(/\//g, '\\/');
   const regex = new RegExp(`^${regexPattern}$`);
