@@ -1,6 +1,5 @@
 import * as vscode from 'vscode';
-import { getIndexStore } from './indexStore';
-import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError, Diagnostic as WeaveDiagnostic } from '@weave-md/parse';
+import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError } from '@weave-md/parse';
 
 /**
  * Full AST Validator using @weave-md/parse for comprehensive validation

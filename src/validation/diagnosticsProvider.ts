@@ -49,13 +49,13 @@ export function createWeaveDiagnostic(
 /**
  * Checks for duplicate section IDs across the workspace
  */
-export function checkDuplicateIds(): vscode.Diagnostic[] {
+export function checkDuplicateIds(): Map<string, vscode.Diagnostic[]> {
   const indexStore = getIndexStore();
-  const diagnostics: vscode.Diagnostic[] = [];
+  const diagnosticsByUri = new Map<string, vscode.Diagnostic[]>();
   const idLocations = new Map<string, Array<{ uri: vscode.Uri; range?: vscode.Range }>>();
 
-  // Collect all section ID locations
-  for (const section of indexStore.getAllSections()) {
+  // Collect all section ID locations (including duplicates)
+  for (const section of indexStore.getAllSectionsIncludingDuplicates()) {
     if (!idLocations.has(section.id)) {
       idLocations.set(section.id, []);
     }
@@ -65,22 +65,28 @@ export function checkDuplicateIds(): vscode.Diagnostic[] {
     });
   }
 
-  // Find duplicates
+  // Find duplicates and group by URI
   for (const [id, locations] of idLocations) {
     if (locations.length > 1) {
       for (const loc of locations) {
         const range = loc.range || new vscode.Range(0, 0, 0, 0);
-        diagnostics.push(createWeaveDiagnostic(
+        const diagnostic = createWeaveDiagnostic(
           range,
           `Duplicate section ID "${id}" found in ${locations.length} files`,
           vscode.DiagnosticSeverity.Error,
           WeaveDiagnosticCode.DUPLICATE_ID
-        ));
+        );
+        
+        const uriKey = loc.uri.toString();
+        if (!diagnosticsByUri.has(uriKey)) {
+          diagnosticsByUri.set(uriKey, []);
+        }
+        diagnosticsByUri.get(uriKey)!.push(diagnostic);
       }
     }
   }
 
-  return diagnostics;
+  return diagnosticsByUri;
 }
 
 /**
@@ -144,11 +150,12 @@ export class DiagnosticsProvider {
 
     // Check for duplicate IDs
     const duplicateDiagnostics = checkDuplicateIds();
-    // Group by URI
-    const duplicatesByUri = new Map<string, vscode.Diagnostic[]>();
-    for (const diag of duplicateDiagnostics) {
-      // We need to track which URI each diagnostic belongs to
-      // For now, we'll add them to a general collection
+    
+    // Apply duplicate ID diagnostics (already grouped by URI)
+    for (const [uriString, diagnostics] of duplicateDiagnostics) {
+      const uri = vscode.Uri.parse(uriString);
+      const existing = this.diagnosticCollection.get(uri) || [];
+      this.diagnosticCollection.set(uri, [...existing, ...diagnostics]);
     }
   }
 

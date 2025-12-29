@@ -89,10 +89,21 @@ export class IndexStore {
   }
 
   /**
-   * Gets all sections
+   * Gets all sections (deduplicated by ID - returns one section per ID)
    */
   public getAllSections(): Section[] {
     return Array.from(this.sectionsById.values());
+  }
+
+  /**
+   * Gets all sections including duplicates (for duplicate ID detection)
+   */
+  public getAllSectionsIncludingDuplicates(): Section[] {
+    const sections: Section[] = [];
+    for (const fileIndex of this.fileIndexByUri.values()) {
+      sections.push(...fileIndex.sections);
+    }
+    return sections;
   }
 
   /**
