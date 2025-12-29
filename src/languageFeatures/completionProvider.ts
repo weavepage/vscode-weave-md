@@ -19,15 +19,15 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
     // Stage 1: Suggest "node:" when starting a link
     const linkMatch = beforeCursor.match(/\]\((n|no|nod|node)?$/);
     if (linkMatch) {
-      return [
-        {
-          label: 'node:',
-          kind: vscode.CompletionItemKind.Reference,
-          insertText: 'node:',
-          documentation: 'Weave node reference',
-          detail: 'Insert a Weave section reference'
-        }
-      ];
+      const item = new vscode.CompletionItem('node:', vscode.CompletionItemKind.Reference);
+      item.insertText = 'node:';
+      item.documentation = 'Weave node reference';
+      item.detail = 'Insert a Weave section reference';
+      item.command = {
+        command: 'editor.action.triggerSuggest',
+        title: 'Trigger Suggest'
+      };
+      return [item];
     }
 
     // Stage 2: Node ID completion - triggers after "node:"
@@ -51,43 +51,10 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
         });
     }
 
-    // Stage 3: Parameter completion - triggers after "?"
-    const paramMatch = beforeCursor.match(/\]\(node:[^?\s)]+\?([^)\s]*)$/);
-    if (paramMatch) {
-      const existingParams = paramMatch[1];
-      const items: vscode.CompletionItem[] = [];
-
-      // Check which params are already present
-      const hasDisplay = existingParams.includes('display=');
-      const hasExport = existingParams.includes('export=');
-
-      if (!hasDisplay) {
-        items.push({
-          label: 'display',
-          kind: vscode.CompletionItemKind.Property,
-          insertText: existingParams && !existingParams.endsWith('&') ? '&display=' : 'display=',
-          documentation: 'How to display the referenced section',
-          detail: 'Display mode parameter'
-        });
-      }
-
-      if (!hasExport) {
-        items.push({
-          label: 'export',
-          kind: vscode.CompletionItemKind.Property,
-          insertText: existingParams && !existingParams.endsWith('&') ? '&export=' : 'export=',
-          documentation: 'Export hint for the reference',
-          detail: 'Export parameter'
-        });
-      }
-
-      return items;
-    }
-
-    // Stage 4: Display value completion
-    const displayValueMatch = beforeCursor.match(/display=([^&)\s]*)$/);
+    // Stage 3: Display value completion - must check before parameter completion
+    const displayValueMatch = beforeCursor.match(/\]\(node:[^)]*[?&]display=([^&)\s]*)$/);
     if (displayValueMatch) {
-      const displayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin'];
+      const displayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'page'];
       const partial = displayValueMatch[1];
 
       return displayValues
@@ -101,10 +68,10 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
         }));
     }
 
-    // Stage 5: Export value completion
-    const exportValueMatch = beforeCursor.match(/export=([^&)\s]*)$/);
+    // Stage 4: Export value completion - must check before parameter completion
+    const exportValueMatch = beforeCursor.match(/\]\(node:[^)]*[?&]export=([^&)\s]*)$/);
     if (exportValueMatch) {
-      const exportValues = ['include', 'exclude', 'reference'];
+      const exportValues = ['appendix', 'inline', 'omit'];
       const partial = exportValueMatch[1];
 
       return exportValues
@@ -116,6 +83,44 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
           documentation: getExportDescription(value),
           detail: 'Export hint'
         }));
+    }
+
+    // Stage 5: Parameter completion - triggers after "?" or "&"
+    const paramMatch = beforeCursor.match(/\]\(node:[^?\s)]+\?(.*)$/);
+    if (paramMatch) {
+      const afterQuestion = paramMatch[1];
+      const items: vscode.CompletionItem[] = [];
+
+      // Check which params are already present
+      const hasDisplay = afterQuestion.includes('display=');
+      const hasExport = afterQuestion.includes('export=');
+      
+      // Find where the current incomplete param starts (after last & or at start)
+      const lastAmpersand = afterQuestion.lastIndexOf('&');
+      const incompleteParam = lastAmpersand >= 0 ? afterQuestion.slice(lastAmpersand + 1) : afterQuestion;
+      const replaceLength = incompleteParam.length;
+
+      if (!hasDisplay && 'display'.startsWith(incompleteParam.replace('=', ''))) {
+        const displayItem = new vscode.CompletionItem('display', vscode.CompletionItemKind.Property);
+        displayItem.insertText = 'display=';
+        displayItem.documentation = 'How to display the referenced section';
+        displayItem.detail = 'Display mode parameter';
+        displayItem.range = new vscode.Range(position.translate(0, -replaceLength), position);
+        displayItem.command = { command: 'editor.action.triggerSuggest', title: 'Trigger Suggest' };
+        items.push(displayItem);
+      }
+
+      if (!hasExport && 'export'.startsWith(incompleteParam.replace('=', ''))) {
+        const exportItem = new vscode.CompletionItem('export', vscode.CompletionItemKind.Property);
+        exportItem.insertText = 'export=';
+        exportItem.documentation = 'Export hint for the reference';
+        exportItem.detail = 'Export parameter';
+        exportItem.range = new vscode.Range(position.translate(0, -replaceLength), position);
+        exportItem.command = { command: 'editor.action.triggerSuggest', title: 'Trigger Suggest' };
+        items.push(exportItem);
+      }
+
+      return items;
     }
 
     // Frontmatter completion
@@ -171,7 +176,8 @@ function getDisplayDescription(value: string): string {
     'overlay': 'Show content in a popover on hover/click',
     'footnote': 'Show as numbered footnote at bottom',
     'sidenote': 'Show as numbered note in the margin',
-    'margin': 'Show as unnumbered margin note'
+    'margin': 'Show as unnumbered margin note',
+    'page': 'Full page reference'
   };
   return descriptions[value] || value;
 }
@@ -181,9 +187,9 @@ function getDisplayDescription(value: string): string {
  */
 function getExportDescription(value: string): string {
   const descriptions: Record<string, string> = {
-    'include': 'Include full content in exports',
-    'exclude': 'Exclude from exports',
-    'reference': 'Include as reference only'
+    'appendix': 'Prefer appendix placement',
+    'inline': 'Prefer inline expansion',
+    'omit': 'Exclude from export'
   };
   return descriptions[value] || value;
 }

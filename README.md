@@ -58,7 +58,7 @@ See the [introduction](node:intro) for more details.
 
 With display mode: [details](node:intro?display=overlay)
 
-With export hint: [reference](node:intro?export=include)
+With export hint: [reference](node:intro?export=appendix)
 ```
 
 ### Display Modes

@@ -18,4 +18,4 @@ Link with invalid display: [test](node:intro?display=invalid)
 
 ## Valid Parameters
 
-Link with valid params: [test](node:intro?display=overlay&export=include)
+Link with valid params: [test](node:intro?display=overlay&export=inline)
