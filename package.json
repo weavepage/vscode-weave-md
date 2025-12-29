@@ -87,6 +87,11 @@
           "type": "number",
           "default": 50,
           "description": "Maximum expanded references per document"
+        },
+        "weave.showPreviewLabels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show intent labels (e.g. [Sidenote], [Margin Note]) for display modes that fall back to inline"
         }
       }
     },
