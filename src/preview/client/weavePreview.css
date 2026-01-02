@@ -1,0 +1,384 @@
+/**
+ * Weave Preview Styles
+ * 
+ * Constraints (from plan):
+ * - All styles must be strictly namespaced (e.g. .weave-*)
+ * - Must not style global HTML tags (a, p, sup, code, etc.)
+ * - Styling should inherit from the active VS Code theme wherever possible
+ * - Layout must degrade gracefully on narrow or constrained preview widths
+ */
+
+/* Base expansion container */
+.weave-expansion {
+  display: inline;
+}
+
+.weave-expansion.weave-stretch {
+  display: block;
+  margin: 0.5em 0;
+}
+
+/* Toggle button styling */
+.weave-toggle {
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+  padding: 0.125em 0.25em;
+  border-radius: 3px;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border: 1px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.2));
+}
+
+.weave-toggle:hover {
+  background-color: var(--vscode-list-hoverBackground, rgba(127, 127, 127, 0.2));
+}
+
+.weave-toggle:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-toggle-icon {
+  font-size: 0.75em;
+  opacity: 0.7;
+  transition: transform 0.15s ease;
+}
+
+.weave-link-text {
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+/* Expansion body */
+.weave-body {
+  display: block;
+  margin: 0.5em 0 0.5em 1em;
+  padding: 0.5em;
+  border-left: 2px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.3));
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-radius: 0 3px 3px 0;
+}
+
+.weave-inline .weave-body {
+  display: inline-block;
+  margin-left: 0.5em;
+  vertical-align: top;
+}
+
+.weave-stretch .weave-body {
+  margin-left: 0;
+  border-left-width: 3px;
+}
+
+/* Header with title and open link */
+.weave-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  margin-bottom: 0.5em;
+  padding-bottom: 0.25em;
+  border-bottom: 1px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.2));
+}
+
+.weave-title {
+  font-weight: 600;
+  font-size: 0.9em;
+  color: var(--vscode-foreground, inherit);
+}
+
+.weave-open-link {
+  font-size: 0.85em;
+  opacity: 0.7;
+  text-decoration: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.weave-open-link:hover {
+  opacity: 1;
+}
+
+/* Content area */
+.weave-content {
+  white-space: pre-wrap;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.weave-truncated {
+  font-size: 0.85em;
+  font-style: italic;
+  opacity: 0.7;
+  margin-top: 0.5em;
+}
+
+/* Missing/error states */
+.weave-link.weave-missing,
+.weave-link.weave-cycle,
+.weave-link.weave-depth-limit,
+.weave-link.weave-ref-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.weave-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  padding: 0 0.35em;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.weave-badge-missing {
+  background-color: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+}
+
+.weave-badge-cycle {
+  background-color: var(--vscode-inputValidation-warningBackground, #352a05);
+  color: var(--vscode-inputValidation-warningForeground, #cca700);
+}
+
+.weave-badge-depth,
+.weave-badge-limit {
+  background-color: var(--vscode-inputValidation-infoBackground, #063b49);
+  color: var(--vscode-inputValidation-infoForeground, #75beff);
+}
+
+/* Overlay mode */
+.weave-overlay {
+  position: relative;
+  display: inline;
+}
+
+.weave-trigger {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.weave-trigger:hover {
+  text-decoration-style: solid;
+}
+
+.weave-trigger:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-popover {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(400px, 90vw);
+  max-height: 300px;
+  overflow: auto;
+  padding: 0.75em;
+  background-color: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Footnote mode */
+.weave-footnote {
+  display: inline;
+}
+
+/* .weave-fn-text inherits normal text styling */
+
+.weave-fn-ref {
+  font-size: 0.85em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 0.1em;
+}
+
+.weave-fn-link {
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: none;
+  padding: 0 0.2em;
+}
+
+.weave-fn-link:hover {
+  text-decoration: underline;
+}
+
+.weave-fn-body {
+  display: block;
+  margin: 0.5em 0;
+  padding: 0.5em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+  border-radius: 0 3px 3px 0;
+}
+
+.weave-fn-back {
+  margin-right: 0.5em;
+  text-decoration: none;
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+/* Sidenote mode */
+.weave-sidenote {
+  display: inline;
+}
+
+/* .weave-sn-text inherits normal text styling */
+
+.weave-sn-ref {
+  font-size: 0.85em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 0.1em;
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.weave-sn-body {
+  display: block;
+  float: right;
+  clear: right;
+  width: 200px;
+  margin: 0 -220px 0.5em 0.5em;
+  padding: 0.5em;
+  font-size: 0.85em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+}
+
+.weave-sn-num {
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  margin-right: 0.25em;
+}
+
+/* Fallback for narrow widths - sidenotes become inline */
+@media (max-width: 600px) {
+  .weave-sn-body {
+    float: none;
+    width: auto;
+    margin: 0.5em 0;
+  }
+}
+
+/* Margin note mode */
+.weave-margin {
+  display: inline;
+}
+
+/* .weave-margin-text inherits normal text styling */
+
+.weave-margin-body {
+  display: block;
+  float: right;
+  clear: right;
+  width: 180px;
+  margin: 0 -200px 0.5em 0.5em;
+  padding: 0.5em;
+  font-size: 0.85em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-radius: 3px;
+}
+
+/* Fallback for narrow widths - margin notes become inline */
+@media (max-width: 600px) {
+  .weave-margin-body {
+    float: none;
+    width: auto;
+    margin: 0.5em 0;
+    border-left: 2px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.3));
+    border-radius: 0 3px 3px 0;
+  }
+}
+
+/* Math blocks */
+.weave-math {
+  overflow-x: auto;
+}
+
+.weave-math-block {
+  display: block;
+  margin: 1em 0;
+  padding: 0.5em;
+  text-align: center;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-radius: 3px;
+}
+
+.weave-math-inline {
+  display: inline;
+  font-size: 1em;
+  vertical-align: baseline;
+}
+
+.weave-math-error {
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.weave-error {
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.weave-math-block .weave-error {
+  display: block;
+}
+
+/* Media blocks */
+.weave-media {
+  margin: 1em 0;
+}
+
+.weave-media.weave-error {
+  padding: 0.5em;
+  background-color: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  border-radius: 3px;
+}
+
+.weave-image img,
+.weave-video video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+
+.weave-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5em;
+}
+
+.weave-gallery-grid img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.weave-audio audio {
+  width: 100%;
+  max-width: 400px;
+}
+
+.weave-media figcaption {
+  margin-top: 0.5em;
+  font-size: 0.9em;
+  font-style: italic;
+  opacity: 0.8;
+  text-align: center;
+}
+
+/* Preformatted text */
+.weave-pre {
+  white-space: pre;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  padding: 0.5em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border-radius: 3px;
+  overflow-x: auto;
+}
