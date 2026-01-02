@@ -1,0 +1,144 @@
+{
+  "name": "vscode-weave-md",
+  "displayName": "Weave Markdown",
+  "description": "Preview renderer, validator, and navigation helpers for Weave documents",
+  "version": "0.1.0",
+  "publisher": "weavepage",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/weavepage/vscode-weave-md"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "weave",
+    "markdown",
+    "preview",
+    "documentation"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "weave.gotoDefinition",
+        "title": "Weave: Go to Section Definition"
+      },
+      {
+        "command": "weave.peekSection",
+        "title": "Weave: Peek Section"
+      },
+      {
+        "command": "weave.showBacklinks",
+        "title": "Weave: Show Backlinks (1 hop)"
+      },
+      {
+        "command": "weave.fullConformanceCheck",
+        "title": "Weave: Full Conformance Check"
+      },
+      {
+        "command": "weave.validateWorkspace",
+        "title": "Weave: Validate Workspace"
+      }
+    ],
+    "configuration": {
+      "title": "Weave",
+      "properties": {
+        "weave.rootFile": {
+          "type": "string",
+          "default": "main.md",
+          "description": "Root file for the Weave document"
+        },
+        "weave.sectionsGlob": {
+          "type": "string",
+          "default": "sections/**/*.md",
+          "description": "Glob pattern for section files"
+        },
+        "weave.enablePreviewEnhancements": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable Weave preview enhancements"
+        },
+        "weave.maxPreviewDepth": {
+          "type": "number",
+          "default": 3,
+          "description": "Maximum depth for nested expansions in preview"
+        },
+        "weave.peekMaxChars": {
+          "type": "number",
+          "default": 240,
+          "description": "Maximum characters to show in peek preview"
+        },
+        "weave.maxExpandedCharsPerRef": {
+          "type": "number",
+          "default": 12000,
+          "description": "Maximum characters per expanded reference"
+        },
+        "weave.maxExpandedRefsPerDoc": {
+          "type": "number",
+          "default": 50,
+          "description": "Maximum expanded references per document"
+        },
+        "weave.showPreviewLabels": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show intent labels (e.g. [Sidenote], [Margin Note]) for display modes that fall back to inline"
+        },
+        "weave.strictNodeParams": {
+          "type": "boolean",
+          "default": false,
+          "description": "Treat unknown node: URL parameters as warnings (true) instead of informational messages (false)"
+        }
+      }
+    },
+    "markdown.previewScripts": [
+      "./out/preview/client/weavePreview.js"
+    ],
+    "markdown.previewStyles": [
+      "./out/preview/client/weavePreview.css"
+    ],
+    "markdown.markdownItPlugins": true
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run package",
+    "compile": "npm run check-types && node esbuild.js && npm run copy-assets",
+    "check-types": "tsc --noEmit",
+    "copy-assets": "cp -r src/preview/client out/preview/",
+    "watch": "npm-run-all -p watch:*",
+    "watch:esbuild": "node esbuild.js --watch",
+    "watch:tsc": "tsc --noEmit --watch --preserveWatchOutput",
+    "package": "npm run check-types && node esbuild.js --production && npm run copy-assets",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^13.0.7",
+    "@types/mocha": "^10.0.6",
+    "@types/node": "^20.10.0",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vscode/test-electron": "^2.3.8",
+    "esbuild": "^0.27.2",
+    "eslint": "^8.54.0",
+    "mocha": "^10.2.0",
+    "npm-run-all": "^4.1.5",
+    "typescript": "^5.3.2"
+  },
+  "dependencies": {
+    "@weave-md/core": "^0.1.0-alpha.0",
+    "@weave-md/parse": "^0.1.0-alpha.0",
+    "@weave-md/validate": "^0.1.0-alpha.0",
+    "katex": "^0.16.9",
+    "yaml": "^2.3.4"
+  }
+}

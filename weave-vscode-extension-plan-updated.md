@@ -776,3 +776,30 @@ class WeaveDiagnosticProvider {
 - Treat markdown rendering as untrusted:
   - consider sanitizing HTML if you allow raw HTML in markdown
   - or disable raw HTML rendering in preview enhancements
+
+---
+
+## Preview Integration Constraints
+
+This extension intentionally enhances VS Code's built-in Markdown preview only. It does not attempt to integrate with preview-replacement extensions (e.g. Markdown Preview Enhanced). If another extension replaces the preview renderer, Weave preview enhancements may not apply.
+
+### Markdown-it Usage
+- All markdown-it plugins used by the extension must be pure, synchronous, and side-effect free.
+- Plugins must not perform file I/O, async work, RPC, or workspace scanning.
+- Plugins consume host-owned, in-memory caches only.
+- All markdown-it transformations must be idempotent. If a token or HTML node is already transformed (e.g. marked with `data-weave="1"`), the plugin must no-op.
+- The renderer must not rely on execution order relative to other markdown-it plugins.
+
+### Preview Scripts (JavaScript)
+- Scripts must be idempotent and use event delegation.
+- Scripts must only interact with DOM elements created by Weave (e.g. `.weave-*`), and must not mutate or reparent nodes created by other renderers.
+
+### Preview Styling (CSS)
+- All preview styles must be strictly namespaced (e.g. `.weave-*`).
+- The extension must not style global HTML tags (`a`, `p`, `sup`, `code`, etc.).
+- Styling should inherit from the active VS Code theme wherever possible.
+- Layout must degrade gracefully on narrow or constrained preview widths.
+
+### Preview Refresh Model
+- Because content is embedded at render time, preview output may become stale when the workspace index updates.
+- The extension may trigger debounced preview refreshes when necessary, or expose a manual "Refresh Weave Preview" command.
