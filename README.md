@@ -90,6 +90,8 @@ With export hint: [reference](node:intro?export=appendix)
 | `weave.peekMaxChars` | `240` | Maximum characters in peek preview |
 | `weave.maxExpandedCharsPerRef` | `12000` | Maximum characters per expanded reference |
 | `weave.maxExpandedRefsPerDoc` | `50` | Maximum expanded references per document |
+| `weave.showPreviewLabels` | `true` | Show intent labels (e.g. [Sidenote], [Margin Note]) for display modes that fall back to inline |
+| `weave.strictNodeParams` | `false` | Treat unknown node: URL parameters as warnings (true) instead of informational messages (false) |
 
 ## Troubleshooting
 
