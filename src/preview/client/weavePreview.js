@@ -22,14 +22,12 @@
    */
   function handleInlineTrigger(trigger) {
     const targetId = trigger.getAttribute('data-target');
-    console.log('[Weave] handleInlineTrigger called, targetId:', targetId);
     
     // Find or create content element from template
     let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
     if (!content) {
       // Look for template and create content from it
       const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
-      console.log('[Weave] Found template:', template);
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-inline-content';
@@ -45,9 +43,7 @@
       }
     }
     
-    console.log('[Weave] Found/created content element:', content);
     if (!content) {
-      console.log('[Weave] No content found for targetId:', targetId);
       return;
     }
 
@@ -69,14 +65,12 @@
    */
   function handleInlineAnchor(anchor) {
     const targetId = anchor.getAttribute('data-target');
-    console.log('[Weave] handleInlineAnchor called, targetId:', targetId);
     
     // Find or create content element from template
     let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
     if (!content) {
       // Look for template and create content from it
       const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
-      console.log('[Weave] Found template:', template);
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-inline-content';
@@ -92,9 +86,7 @@
       }
     }
     
-    console.log('[Weave] Found/created content element:', content);
     if (!content) {
-      console.log('[Weave] No content found for targetId:', targetId);
       return;
     }
 
@@ -115,7 +107,6 @@
   function handleOverlay(trigger, show) {
     const targetId = trigger.getAttribute('data-target');
     const isNested = trigger.getAttribute('data-nested') === '1';
-    console.log('[Weave] handleOverlay called, targetId:', targetId, 'show:', show, 'isNested:', isNested);
     
     // Find or create content element from template
     let content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
@@ -128,7 +119,6 @@
         template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
       }
       
-      console.log('[Weave] Found overlay template:', template);
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-overlay-content';
@@ -145,9 +135,7 @@
       }
     }
     
-    console.log('[Weave] Found/created overlay content:', content);
     if (!content) {
-      console.log('[Weave] No overlay content found for targetId:', targetId);
       return;
     }
 

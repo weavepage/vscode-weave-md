@@ -270,13 +270,9 @@ function getNestedLinkTemplates(content: string, depth: number, ctx: RenderConte
   const templates: string[] = [];
   const processedIds = new Set<string>();
   
-  console.log('[Weave] getNestedLinkTemplates called, content length:', content.length, 'depth:', depth);
-  console.log('[Weave] Content snippet:', content.substring(0, 200));
-  
   let match;
   while ((match = regex.exec(content)) !== null) {
     const nestedId = match[1];
-    console.log('[Weave] Found nested link in content:', nestedId);
     
     // Skip duplicates and cycles
     if (processedIds.has(nestedId) || ctx.expandedIds.has(nestedId)) {
@@ -433,12 +429,7 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     if (!env.weaveContext) {
       env.weaveContext = createRenderContext();
     }
-    console.log('[Weave Core] weave_init called, context initialized');
   });
-  
-  // Note: Core rules run during PARSING, but footnotes are collected during RENDERING.
-  // This means we can't inject footnotes via core rules - they haven't been collected yet.
-  // Instead, we need to use a different approach.
   
   const defaultText = md.renderer.rules.text ||
     function(tokens: Token[], idx: number) {
@@ -516,12 +507,9 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     // Render the main content
     let html = originalRender(src, renderEnv);
     
-    console.log('[Weave Plugin] Render complete, inlineContents count:', renderEnv.weaveContext?.inlineContents?.length || 0);
-    
     // Append deferred inline/overlay content (rendered outside paragraphs to avoid breaking them)
     if (renderEnv.weaveContext && renderEnv.weaveContext.inlineContents.length > 0) {
       const deferredHtml = renderDeferredContent(renderEnv.weaveContext);
-      console.log('[Weave Plugin] Adding deferred content:', deferredHtml.substring(0, 200));
       html += deferredHtml;
     }
     
@@ -543,8 +531,6 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     
     // Render all tokens
     let html = originalRendererRender(tokens, options, env);
-    
-    console.log('[Weave Renderer] render complete, footnotes count:', env.weaveContext?.footnotes?.size || 0);
     
     // Append footnotes section if any were collected
     if (env.weaveContext && env.weaveContext.footnotes.size > 0) {
@@ -571,26 +557,6 @@ function renderDeferredContent(ctx: RenderContext): string {
   }
   html += '</div>';
   return html;
-}
-
-/**
- * Renders inline math with :math[...] syntax
- */
-function renderInlineMath(content: string): string {
-  try {
-    const katex = require('katex');
-    const html = katex.renderToString(content.trim(), {
-      displayMode: false,
-      throwOnError: false,
-      output: 'html'
-    });
-    return `<span class="weave-math weave-math-inline" data-weave="1">${html}</span>`;
-  } catch {
-    return `<span class="weave-math weave-math-inline weave-math-error" data-weave="1">
-      <code>${escapeHtml(content)}</code>
-      <span class="weave-error">Math error</span>
-    </span>`;
-  }
 }
 
 /**

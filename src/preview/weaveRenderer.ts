@@ -207,60 +207,6 @@ function processInlineMath(text: string, renderMath: boolean): string {
 }
 
 /**
- * Custom handler for Weave-specific nodes in the HAST transformation
- */
-function createWeaveHandlers(options: RenderOptions) {
-  return {
-    // Handle code blocks with special info strings
-    code: (state: unknown, node: { lang?: string; value: string }) => {
-      const lang = node.lang?.toLowerCase() || '';
-      const content = node.value;
-      
-      switch (lang) {
-        case 'math':
-          return {
-            type: 'raw',
-            value: renderMathBlock(content, true)
-          };
-        case 'image':
-          return {
-            type: 'raw',
-            value: renderImageBlock(content)
-          };
-        case 'gallery':
-          return {
-            type: 'raw',
-            value: renderGalleryBlock(content)
-          };
-        case 'audio':
-          return {
-            type: 'raw',
-            value: renderAudioBlock(content)
-          };
-        case 'video':
-          return {
-            type: 'raw',
-            value: renderVideoBlock(content)
-          };
-        case 'embed':
-          return {
-            type: 'raw',
-            value: renderEmbedBlock(content)
-          };
-        case 'pre':
-          return {
-            type: 'raw',
-            value: renderPreBlock(content)
-          };
-        default:
-          // Default code block handling
-          return undefined;
-      }
-    }
-  };
-}
-
-/**
  * Transforms HAST tree to handle Weave-specific elements
  */
 function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
@@ -328,9 +274,7 @@ function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
       // Handle node: links - convert to clickable triggers with templates
       if (element.tagName === 'a') {
         const href = element.properties?.href as string | undefined;
-        console.log('[WeaveRenderer] Found <a> element, href:', href);
         if (href && href.startsWith('node:')) {
-          console.log('[WeaveRenderer] Processing node: link:', href);
           // Parse the node URL
           const urlPart = href.slice(5); // Remove 'node:'
           const [id, queryString] = urlPart.split('?');
