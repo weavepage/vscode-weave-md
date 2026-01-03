@@ -229,13 +229,13 @@ function renderNodeLink(
   
   switch (display) {
     case 'inline':
-      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
+      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
     case 'stretch':
       return renderStretchExpansion(targetId, linkText, sectionTitle, content, filePath);
     
     case 'overlay':
-      return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
+      return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
     case 'footnote':
       return renderFootnoteRef(targetId, linkText, sectionTitle, content, ctx);
@@ -248,7 +248,7 @@ function renderNodeLink(
       return renderMarginNote(targetId, linkText, sectionTitle, content, filePath);
     
     default:
-      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
+      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
   }
 }
 
@@ -261,16 +261,65 @@ function isAnchorOnly(linkText: string): boolean {
   return !linkText || !linkText.trim() || linkText.trim() === '';
 }
 
-function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext): string {
+/**
+ * Scans content for nested node links and renders templates for their content
+ */
+function getNestedLinkTemplates(content: string, depth: number, ctx: RenderContext): string {
+  // Find all nested node links (have data-nested="1" attribute)
+  const regex = /data-target="([^"]+)"\s+data-nested="1"/g;
+  const templates: string[] = [];
+  const processedIds = new Set<string>();
+  
+  console.log('[Weave] getNestedLinkTemplates called, content length:', content.length, 'depth:', depth);
+  console.log('[Weave] Content snippet:', content.substring(0, 200));
+  
+  let match;
+  while ((match = regex.exec(content)) !== null) {
+    const nestedId = match[1];
+    console.log('[Weave] Found nested link in content:', nestedId);
+    
+    // Skip duplicates and cycles
+    if (processedIds.has(nestedId) || ctx.expandedIds.has(nestedId)) {
+      continue;
+    }
+    processedIds.add(nestedId);
+    
+    // Skip if depth exceeded
+    if (depth > ctx.config.maxPreviewDepth) {
+      continue;
+    }
+    
+    // Get the nested section
+    const nestedSection = getIndexStore().getSectionById(nestedId);
+    if (!nestedSection) {
+      continue;
+    }
+    
+    // Render the nested content
+    ctx.expandedIds.add(nestedId);
+    const nestedContent = renderSectionBody(nestedSection, depth, ctx);
+    ctx.expandedIds.delete(nestedId);
+    
+    // Add template for this nested link
+    templates.push(`<template class="weave-overlay-content-template" data-for="${nestedId}">${nestedContent}</template>`);
+  }
+  
+  return templates.join('');
+}
+
+function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
   // Use template element to hold content without affecting layout
   const contentTemplate = `<template class="weave-inline-content-template" data-for="${targetId}">${content}</template>`;
   
+  // Get templates for any nested node links in the content
+  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
+  
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show plus/minus icon
-    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>${contentTemplate}`;
+    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>${contentTemplate}${nestedTemplates}`;
   }
   // Text link with template content
-  return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}`;
+  return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
@@ -280,15 +329,18 @@ function renderStretchExpansion(targetId: string, linkText: string, title: strin
   return `<div class="weave-expansion weave-stretch" data-weave="1" data-target="${targetId}">${trigger}<div class="weave-inline-content" hidden>${content}</div></div>`;
 }
 
-function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext): string {
+function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
   // Use template element to hold content without affecting layout
   const contentTemplate = `<template class="weave-overlay-content-template" data-for="${targetId}">${content}</template>`;
   
+  // Get templates for any nested node links in the content
+  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
+  
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show info icon
-    return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}`;
+    return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}${nestedTemplates}`;
   }
-  return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>${contentTemplate}`;
+  return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 /**
@@ -336,15 +388,20 @@ function renderFootnotesSection(ctx: RenderContext): string {
     return '';
   }
   
+  // Collect all nested link templates from footnote content
+  let nestedTemplates = '';
+  
   const footnotesList = Array.from(ctx.footnotes.values())
     .sort((a, b) => a.num - b.num)
     .map(fn => {
       const backrefId = fn.refIds[0] || '';
+      // Scan footnote content for nested links and add their templates
+      nestedTemplates += getNestedLinkTemplates(fn.content, 1, ctx);
       return `<li id="fn-${fn.num}" class="weave-footnote"><span class="weave-footnote-marker"><a href="#${backrefId}" class="weave-footnote-backref">[${fn.num}]</a></span><div class="weave-footnote-content">${fn.content}</div></li>`;
     })
     .join('');
   
-  return `<hr class="weave-footnotes-separator"><section class="weave-footnotes" data-weave="1"><ol class="weave-footnotes-list">${footnotesList}</ol></section>`;
+  return `<hr class="weave-footnotes-separator"><section class="weave-footnotes" data-weave="1"><ol class="weave-footnotes-list">${footnotesList}</ol></section>${nestedTemplates}`;
 }
 
 function renderSidenote(targetId: string, linkText: string, title: string, content: string, filePath: string, num: number): string {
@@ -369,6 +426,19 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     function(tokens: Token[], idx: number, options: MarkdownIt.Options, _env: unknown, self: Renderer) {
       return self.renderToken(tokens, idx, options);
     };
+  
+  // Add a core rule to initialize weaveContext early
+  md.core.ruler.push('weave_init', function(state) {
+    const env = state.env as WeaveEnv;
+    if (!env.weaveContext) {
+      env.weaveContext = createRenderContext();
+    }
+    console.log('[Weave Core] weave_init called, context initialized');
+  });
+  
+  // Note: Core rules run during PARSING, but footnotes are collected during RENDERING.
+  // This means we can't inject footnotes via core rules - they haven't been collected yet.
+  // Instead, we need to use a different approach.
   
   const defaultText = md.renderer.rules.text ||
     function(tokens: Token[], idx: number) {
@@ -458,6 +528,27 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     // Append footnotes section if any were collected
     if (renderEnv.weaveContext && renderEnv.weaveContext.footnotes.size > 0) {
       html += renderFootnotesSection(renderEnv.weaveContext);
+    }
+    
+    return html;
+  };
+  
+  // Also wrap renderer.render to catch VS Code's preview which may call it directly
+  const originalRendererRender = md.renderer.render.bind(md.renderer);
+  md.renderer.render = function(tokens: Token[], options: MarkdownIt.Options, env: WeaveEnv): string {
+    // Ensure context exists
+    if (!env.weaveContext) {
+      env.weaveContext = createRenderContext();
+    }
+    
+    // Render all tokens
+    let html = originalRendererRender(tokens, options, env);
+    
+    console.log('[Weave Renderer] render complete, footnotes count:', env.weaveContext?.footnotes?.size || 0);
+    
+    // Append footnotes section if any were collected
+    if (env.weaveContext && env.weaveContext.footnotes.size > 0) {
+      html += renderFootnotesSection(env.weaveContext);
     }
     
     return html;

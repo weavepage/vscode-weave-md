@@ -114,19 +114,33 @@
    */
   function handleOverlay(trigger, show) {
     const targetId = trigger.getAttribute('data-target');
-    console.log('[Weave] handleOverlay called, targetId:', targetId, 'show:', show);
+    const isNested = trigger.getAttribute('data-nested') === '1';
+    console.log('[Weave] handleOverlay called, targetId:', targetId, 'show:', show, 'isNested:', isNested);
     
     // Find or create content element from template
     let content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
     if (!content) {
-      // Look for template and create content from it
-      const template = document.querySelector('template.weave-overlay-content-template[data-for="' + targetId + '"]');
+      // Look for overlay template first
+      let template = document.querySelector('template.weave-overlay-content-template[data-for="' + targetId + '"]');
+      
+      // If not found, try inline template (content is the same)
+      if (!template) {
+        template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+      }
+      
       console.log('[Weave] Found overlay template:', template);
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-overlay-content';
         content.setAttribute('data-for', targetId);
         content.innerHTML = '<div class="weave-overlay-body">' + template.innerHTML + '</div>';
+        document.body.appendChild(content);
+      } else if (isNested) {
+        // For nested links without templates, create placeholder
+        content = document.createElement('div');
+        content.className = 'weave-overlay-content';
+        content.setAttribute('data-for', targetId);
+        content.innerHTML = '<div class="weave-overlay-body"><p><em>Content for "' + targetId + '" - expand from main document to view.</em></p></div>';
         document.body.appendChild(content);
       }
     }
