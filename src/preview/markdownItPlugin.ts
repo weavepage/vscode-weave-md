@@ -13,6 +13,7 @@ import type Token from 'markdown-it/lib/token';
 import type Renderer from 'markdown-it/lib/renderer';
 import * as vscode from 'vscode';
 import { getIndexStore, Section } from '../validation/indexStore';
+import { renderSectionBody as renderSectionBodyHtml } from './weaveRenderer';
 
 /**
  * Preview configuration from VS Code settings
@@ -103,6 +104,17 @@ function escapeHtml(str: string): string {
 }
 
 /**
+ * Footnote entry for collection
+ */
+interface FootnoteEntry {
+  id: string;
+  num: number;
+  title: string;
+  content: string;
+  refIds: string[];  // IDs of all references to this footnote
+}
+
+/**
  * Render context for tracking expansion state
  */
 interface RenderContext {
@@ -111,6 +123,9 @@ interface RenderContext {
   footnoteCount: number;
   sidenoteCount: number;
   config: PreviewConfig;
+  // Footnote tracking: map from section ID to footnote entry
+  footnotes: Map<string, FootnoteEntry>;
+  footnoteRefCount: number;  // Counter for unique ref IDs
 }
 
 /**
@@ -122,23 +137,30 @@ function createRenderContext(): RenderContext {
     expandedIds: new Set(),
     footnoteCount: 0,
     sidenoteCount: 0,
-    config: getPreviewConfig()
+    config: getPreviewConfig(),
+    footnotes: new Map(),
+    footnoteRefCount: 0
   };
 }
 
 /**
- * Renders section content for embedding (simplified markdown rendering)
+ * Renders section content for embedding using @weave-md/parse
  */
 function renderSectionBody(section: Section, depth: number, ctx: RenderContext): string {
   const body = section.bodyMarkdown;
   
+  // Use the Weave renderer for proper HTML output
+  const html = renderSectionBodyHtml(body, {
+    renderMath: true,
+    maxChars: ctx.config.maxExpandedCharsPerRef
+  });
+  
   if (body.length > ctx.config.maxExpandedCharsPerRef) {
-    const truncated = body.slice(0, ctx.config.maxExpandedCharsPerRef);
-    return `<div class="weave-content">${escapeHtml(truncated)}</div>
+    return `<div class="weave-content">${html}</div>
       <div class="weave-truncated">(Content truncated - ${body.length} chars total)</div>`;
   }
   
-  return `<div class="weave-content">${escapeHtml(body)}</div>`;
+  return `<div class="weave-content">${html}</div>`;
 }
 
 /**
@@ -162,7 +184,9 @@ function renderNodeLink(
   }
   
   const sectionTitle = section.title || section.id;
-  const filePath = section.uri.fsPath;
+  // Use # for links since VS Code preview can't navigate to files directly
+  // The data-target attribute can be used by scripts for navigation
+  const filePath = `#${targetId}`;
   
   if (ctx.expandedIds.has(parsed.id)) {
     return `<span class="weave-link weave-cycle" data-weave="1" data-target="${targetId}">
@@ -203,8 +227,7 @@ function renderNodeLink(
       return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath);
     
     case 'footnote':
-      ctx.footnoteCount++;
-      return renderFootnote(targetId, linkText, sectionTitle, content, filePath, ctx.footnoteCount);
+      return renderFootnoteRef(targetId, linkText, sectionTitle, content, ctx);
     
     case 'sidenote':
       ctx.sidenoteCount++;
@@ -218,97 +241,101 @@ function renderNodeLink(
   }
 }
 
+// SVG icons for anchor-only references
+const ICON_PLUS = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="weave-icon weave-icon-plus"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v6m3-3H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>';
+const ICON_MINUS = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="weave-icon weave-icon-minus"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12H9m12 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"></path></svg>';
+const ICON_INFO = '<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="weave-icon"><path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z"></path></svg>';
+
+function isAnchorOnly(linkText: string): boolean {
+  return !linkText || !linkText.trim() || linkText.trim() === '';
+}
+
 function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  return `<span class="weave-expansion weave-inline" data-weave="1" data-target="${targetId}">
-    <span class="weave-toggle" tabindex="0" role="button" aria-expanded="false">
-      <span class="weave-toggle-icon">▶</span>
-      <span class="weave-link-text">${escapeHtml(linkText)}</span>
-    </span>
-    <span class="weave-body" hidden>
-      <span class="weave-header">
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </span>
-      ${content}
-    </span>
-  </span>`;
+  if (isAnchorOnly(linkText)) {
+    // Anchor-only: show plus/minus icon
+    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span><span class="weave-inline-content" data-for="${targetId}" hidden>${content}</span>`;
+  }
+  // Text link: show clickable text
+  return `<span class="weave-expansion weave-inline" data-weave="1" data-target="${targetId}"><span class="weave-inline-trigger" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span><span class="weave-inline-content" hidden>${content}</span></span>`;
 }
 
 function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  return `<div class="weave-expansion weave-stretch" data-weave="1" data-target="${targetId}">
-    <div class="weave-toggle" tabindex="0" role="button" aria-expanded="false">
-      <span class="weave-toggle-icon">▶</span>
-      <span class="weave-link-text">${escapeHtml(linkText)}</span>
-    </div>
-    <div class="weave-body" hidden>
-      <div class="weave-header">
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </div>
-      ${content}
-    </div>
-  </div>`;
+  const trigger = isAnchorOnly(linkText) 
+    ? `<span class="weave-inline-anchor" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>`
+    : `<span class="weave-inline-trigger" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>`;
+  return `<div class="weave-expansion weave-stretch" data-weave="1" data-target="${targetId}">${trigger}<div class="weave-inline-content" hidden>${content}</div></div>`;
 }
 
 function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  return `<span class="weave-expansion weave-overlay" data-weave="1" data-target="${targetId}">
-    <span class="weave-trigger" tabindex="0" role="button" aria-haspopup="true">
-      ${escapeHtml(linkText)}
-    </span>
-    <span class="weave-popover" role="tooltip" hidden>
-      <span class="weave-header">
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </span>
-      ${content}
-    </span>
-  </span>`;
+  if (isAnchorOnly(linkText)) {
+    // Anchor-only: show info icon
+    return `<span class="weave-expansion weave-overlay" data-weave="1" data-target="${targetId}"><span class="weave-overlay-anchor" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span><span class="weave-overlay-content" hidden><span class="weave-overlay-body">${content}</span></span></span>`;
+  }
+  return `<span class="weave-expansion weave-overlay" data-weave="1" data-target="${targetId}"><span class="weave-node-link" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span><span class="weave-overlay-content" hidden><span class="weave-overlay-body">${content}</span></span></span>`;
 }
 
-function renderFootnote(targetId: string, linkText: string, title: string, content: string, filePath: string, num: number): string {
-  const noteId = `weave-fn-${targetId}-${num}`;
-  return `<span class="weave-expansion weave-footnote" data-weave="1" data-target="${targetId}">
-    <span class="weave-fn-text">${escapeHtml(linkText)}</span>
-    <sup class="weave-fn-ref">
-      <a href="#${noteId}" id="${noteId}-ref" class="weave-fn-link">${num}</a>
-    </sup>
-    <span class="weave-fn-body" id="${noteId}" hidden>
-      <span class="weave-header">
-        <a href="#${noteId}-ref" class="weave-fn-back">↩</a>
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </span>
-      ${content}
-    </span>
-  </span>`;
+/**
+ * Renders a footnote reference (inline superscript) and collects the footnote for later rendering
+ */
+function renderFootnoteRef(targetId: string, linkText: string, title: string, content: string, ctx: RenderContext): string {
+  ctx.footnoteRefCount++;
+  const refId = `fnref-${ctx.footnoteRefCount}`;
+  
+  // Check if this footnote already exists (deduplication)
+  let entry = ctx.footnotes.get(targetId);
+  if (!entry) {
+    // New footnote - assign next number
+    ctx.footnoteCount++;
+    entry = {
+      id: targetId,
+      num: ctx.footnoteCount,
+      title,
+      content,
+      refIds: []
+    };
+    ctx.footnotes.set(targetId, entry);
+  }
+  
+  // Track this reference
+  entry.refIds.push(refId);
+  
+  const fnNum = entry.num;
+  
+  // Render based on whether there's link text or just anchor
+  if (linkText && linkText.trim() && linkText.trim() !== ' ') {
+    // Text-linked footnote reference
+    return `<a href="#fn-${fnNum}" id="${refId}" class="weave-footnote-link" data-weave="1"><span class="weave-footnote-link-text">${escapeHtml(linkText)}</span><sup>[${fnNum}]</sup></a>`;
+  } else {
+    // Anchor-only footnote reference
+    return `<sup class="weave-footnote-ref" data-weave="1"><a href="#fn-${fnNum}" id="${refId}">[${fnNum}]</a></sup>`;
+  }
+}
+
+/**
+ * Renders all collected footnotes as a section at the bottom
+ */
+function renderFootnotesSection(ctx: RenderContext): string {
+  if (ctx.footnotes.size === 0) {
+    return '';
+  }
+  
+  const footnotesList = Array.from(ctx.footnotes.values())
+    .sort((a, b) => a.num - b.num)
+    .map(fn => {
+      const backrefId = fn.refIds[0] || '';
+      return `<li id="fn-${fn.num}" class="weave-footnote"><span class="weave-footnote-marker"><a href="#${backrefId}" class="weave-footnote-backref">[${fn.num}]</a></span><div class="weave-footnote-content">${fn.content}</div></li>`;
+    })
+    .join('');
+  
+  return `<hr class="weave-footnotes-separator"><section class="weave-footnotes" data-weave="1"><ol class="weave-footnotes-list">${footnotesList}</ol></section>`;
 }
 
 function renderSidenote(targetId: string, linkText: string, title: string, content: string, filePath: string, num: number): string {
-  return `<span class="weave-expansion weave-sidenote" data-weave="1" data-target="${targetId}">
-    <span class="weave-sn-text">${escapeHtml(linkText)}</span>
-    <sup class="weave-sn-ref">${num}</sup>
-    <span class="weave-sn-body">
-      <span class="weave-sn-num">${num}.</span>
-      <span class="weave-header">
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </span>
-      ${content}
-    </span>
-  </span>`;
+  return `<span class="weave-expansion weave-sidenote" data-weave="1" data-target="${targetId}"><span class="weave-sn-text">${escapeHtml(linkText)}</span><sup class="weave-sn-ref">${num}</sup><span class="weave-sn-body"><span class="weave-sn-num">${num}.</span><span class="weave-header"><span class="weave-title">${escapeHtml(title)}</span><a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a></span>${content}</span></span>`;
 }
 
 function renderMarginNote(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  return `<span class="weave-expansion weave-margin" data-weave="1" data-target="${targetId}">
-    <span class="weave-margin-text">${escapeHtml(linkText)}</span>
-    <span class="weave-margin-body">
-      <span class="weave-header">
-        <span class="weave-title">${escapeHtml(title)}</span>
-        <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
-      </span>
-      ${content}
-    </span>
-  </span>`;
+  return `<span class="weave-expansion weave-margin" data-weave="1" data-target="${targetId}"><span class="weave-margin-text">${escapeHtml(linkText)}</span><span class="weave-margin-body"><span class="weave-header"><span class="weave-title">${escapeHtml(title)}</span><a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a></span>${content}</span></span>`;
 }
 
 /**
@@ -316,8 +343,6 @@ function renderMarginNote(targetId: string, linkText: string, title: string, con
  * Transforms node: links into interactive Weave elements with pre-embedded content.
  */
 export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.OutputChannel): void {
-  const indexStore = getIndexStore();
-  
   const defaultLinkOpen = md.renderer.rules.link_open || 
     function(tokens: Token[], idx: number, options: MarkdownIt.Options, _env: unknown, self: Renderer) {
       return self.renderToken(tokens, idx, options);
@@ -385,13 +410,31 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
         }
       }
       
-      const section = indexStore.getSectionById(parsed.id);
+      const section = getIndexStore().getSectionById(parsed.id);
       const ctx = env.weaveContext || createRenderContext();
       
       return renderNodeLink(parsed, linkText || parsed.id, section, 0, ctx);
     }
     
     return defaultLinkClose(tokens, idx, options, env, self);
+  };
+
+  // Wrap the render function to append footnotes at the end
+  const originalRender = md.render.bind(md);
+  md.render = function(src: string, env?: WeaveEnv): string {
+    // Create a fresh context for each render
+    const renderEnv: WeaveEnv = env || {};
+    renderEnv.weaveContext = createRenderContext();
+    
+    // Render the main content
+    let html = originalRender(src, renderEnv);
+    
+    // Append footnotes section if any were collected
+    if (renderEnv.weaveContext && renderEnv.weaveContext.footnotes.size > 0) {
+      html += renderFootnotesSection(renderEnv.weaveContext);
+    }
+    
+    return html;
   };
 }
 

@@ -8,3 +8,4 @@ node_modules/
 /dev-example
 weave-example.html
 /weave-example_files
+weave-example.test.ts

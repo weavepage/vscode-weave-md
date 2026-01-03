@@ -18,89 +18,119 @@
   window.__weavePreviewInitialized = true;
 
   /**
-   * Handles expand/collapse toggle for inline and stretch display modes
+   * Handles expand/collapse for inline triggers (text links)
    */
-  function handleToggle(toggle) {
-    const expansion = toggle.closest('.weave-expansion');
+  function handleInlineTrigger(trigger) {
+    const expansion = trigger.closest('.weave-expansion');
     if (!expansion) return;
 
-    const body = expansion.querySelector('.weave-body');
-    if (!body) return;
+    const content = expansion.querySelector('.weave-inline-content');
+    if (!content) return;
 
-    const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-    const icon = toggle.querySelector('.weave-toggle-icon');
+    const isExpanded = trigger.classList.contains('expanded');
 
     if (isExpanded) {
-      body.hidden = true;
-      toggle.setAttribute('aria-expanded', 'false');
-      if (icon) icon.textContent = '▶';
+      content.style.display = 'none';
+      trigger.classList.remove('expanded');
+      trigger.setAttribute('aria-expanded', 'false');
     } else {
-      body.hidden = false;
-      toggle.setAttribute('aria-expanded', 'true');
-      if (icon) icon.textContent = '▼';
+      content.style.display = 'block';
+      trigger.classList.add('expanded');
+      trigger.setAttribute('aria-expanded', 'true');
     }
   }
 
   /**
-   * Handles overlay popover show/hide
+   * Handles expand/collapse for inline anchor icons
+   */
+  function handleInlineAnchor(anchor) {
+    const targetId = anchor.getAttribute('data-target');
+    // Find the content element (sibling or by data-for attribute)
+    let content = anchor.nextElementSibling;
+    if (!content || !content.classList.contains('weave-inline-content')) {
+      content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    }
+    if (!content) return;
+
+    const isExpanded = anchor.classList.contains('expanded');
+
+    if (isExpanded) {
+      content.style.display = 'none';
+      anchor.classList.remove('expanded');
+    } else {
+      content.style.display = 'block';
+      anchor.classList.add('expanded');
+    }
+  }
+
+  /**
+   * Handles overlay show/hide
    */
   function handleOverlay(trigger, show) {
     const expansion = trigger.closest('.weave-overlay');
     if (!expansion) return;
 
-    const popover = expansion.querySelector('.weave-popover');
-    if (!popover) return;
+    const content = expansion.querySelector('.weave-overlay-content');
+    if (!content) return;
 
     if (show) {
-      popover.hidden = false;
-      positionPopover(trigger, popover);
+      content.hidden = false;
+      content.classList.add('active');
+      positionOverlay(trigger, content);
     } else {
-      popover.hidden = true;
+      content.hidden = true;
+      content.classList.remove('active');
     }
   }
 
   /**
-   * Positions a popover relative to its trigger
+   * Positions an overlay relative to its trigger
    */
-  function positionPopover(trigger, popover) {
+  function positionOverlay(trigger, overlay) {
     const triggerRect = trigger.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
     // Reset positioning
-    popover.style.left = '';
-    popover.style.right = '';
-    popover.style.top = '';
-    popover.style.bottom = '';
+    overlay.style.left = '';
+    overlay.style.right = '';
+    overlay.style.top = '';
+    overlay.style.bottom = '';
 
-    // Get popover dimensions after making visible
-    const popoverRect = popover.getBoundingClientRect();
+    // Get overlay dimensions after making visible
+    const overlayRect = overlay.getBoundingClientRect();
 
     // Position below trigger by default
-    let top = triggerRect.bottom + 4;
-    let left = triggerRect.left;
+    let top = triggerRect.bottom + 10;
+    let left = triggerRect.left + (triggerRect.width / 2) - (overlayRect.width / 2);
 
     // Adjust if would overflow right
-    if (left + popoverRect.width > viewportWidth - 16) {
-      left = Math.max(16, viewportWidth - popoverRect.width - 16);
+    if (left + overlayRect.width > viewportWidth - 16) {
+      left = Math.max(16, viewportWidth - overlayRect.width - 16);
+    }
+
+    // Adjust if would overflow left
+    if (left < 16) {
+      left = 16;
     }
 
     // Adjust if would overflow bottom - show above instead
-    if (top + popoverRect.height > viewportHeight - 16) {
-      top = Math.max(16, triggerRect.top - popoverRect.height - 4);
+    if (top + overlayRect.height > viewportHeight - 16) {
+      top = Math.max(16, triggerRect.top - overlayRect.height - 10);
     }
 
-    popover.style.position = 'fixed';
-    popover.style.left = left + 'px';
-    popover.style.top = top + 'px';
+    overlay.style.position = 'fixed';
+    overlay.style.left = left + 'px';
+    overlay.style.top = top + 'px';
   }
 
   /**
-   * Closes all open popovers
+   * Closes all open overlays
    */
-  function closeAllPopovers() {
-    document.querySelectorAll('.weave-popover:not([hidden])').forEach(function(popover) {
-      popover.hidden = true;
+  function closeAllOverlays() {
+    document.querySelectorAll('.weave-overlay-content.active').forEach(function(overlay) {
+      overlay.hidden = true;
+      overlay.classList.remove('active');
     });
   }
 
@@ -110,24 +140,49 @@
   function handleClick(event) {
     const target = event.target;
 
-    // Handle toggle clicks (inline/stretch)
-    const toggle = target.closest('.weave-toggle');
-    if (toggle) {
+    // Handle inline trigger clicks (text links)
+    const inlineTrigger = target.closest('.weave-inline-trigger');
+    if (inlineTrigger) {
       event.preventDefault();
-      handleToggle(toggle);
+      handleInlineTrigger(inlineTrigger);
       return;
     }
 
-    // Handle overlay trigger clicks
-    const overlayTrigger = target.closest('.weave-trigger');
+    // Handle inline anchor clicks (icon-only)
+    const inlineAnchor = target.closest('.weave-inline-anchor');
+    if (inlineAnchor) {
+      event.preventDefault();
+      handleInlineAnchor(inlineAnchor);
+      return;
+    }
+
+    // Handle overlay anchor clicks (icon-only)
+    const overlayAnchor = target.closest('.weave-overlay-anchor');
+    if (overlayAnchor) {
+      event.preventDefault();
+      event.stopPropagation();
+      const expansion = overlayAnchor.closest('.weave-overlay');
+      const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+      const isVisible = content && content.classList.contains('active');
+      
+      closeAllOverlays();
+      
+      if (!isVisible) {
+        handleOverlay(overlayAnchor, true);
+      }
+      return;
+    }
+
+    // Handle overlay trigger clicks (node-link with overlay display)
+    const overlayTrigger = target.closest('.weave-node-link[data-display="overlay"]');
     if (overlayTrigger) {
       event.preventDefault();
       event.stopPropagation();
       const expansion = overlayTrigger.closest('.weave-overlay');
-      const popover = expansion ? expansion.querySelector('.weave-popover') : null;
-      const isVisible = popover && !popover.hidden;
+      const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+      const isVisible = content && content.classList.contains('active');
       
-      closeAllPopovers();
+      closeAllOverlays();
       
       if (!isVisible) {
         handleOverlay(overlayTrigger, true);
@@ -135,45 +190,45 @@
       return;
     }
 
-    // Handle footnote link clicks
-    const fnLink = target.closest('.weave-fn-link');
-    if (fnLink) {
-      const href = fnLink.getAttribute('href');
-      if (href && href.startsWith('#weave-fn-')) {
+    // Handle footnote reference clicks (jump to footnote at bottom)
+    const fnRefLink = target.closest('.weave-footnote-link, .weave-footnote-ref a');
+    if (fnRefLink) {
+      const href = fnRefLink.getAttribute('href');
+      if (href && href.startsWith('#fn-')) {
         event.preventDefault();
-        const fnBody = document.querySelector(href);
-        if (fnBody) {
-          fnBody.hidden = !fnBody.hidden;
-          if (!fnBody.hidden) {
-            fnBody.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          }
+        const footnote = document.querySelector(href);
+        if (footnote) {
+          footnote.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          footnote.classList.add('weave-footnote-highlight');
+          setTimeout(function() {
+            footnote.classList.remove('weave-footnote-highlight');
+          }, 2000);
         }
       }
       return;
     }
 
-    // Handle footnote back link clicks
-    const fnBack = target.closest('.weave-fn-back');
-    if (fnBack) {
-      const href = fnBack.getAttribute('href');
-      if (href) {
+    // Handle footnote backref clicks (jump back to reference)
+    const fnBackref = target.closest('.weave-footnote-backref');
+    if (fnBackref) {
+      const href = fnBackref.getAttribute('href');
+      if (href && href.startsWith('#fnref-')) {
         event.preventDefault();
-        const fnRef = document.querySelector(href);
-        if (fnRef) {
-          fnRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        }
-        // Hide the footnote body
-        const fnBody = fnBack.closest('.weave-fn-body');
-        if (fnBody) {
-          fnBody.hidden = true;
+        const refElement = document.querySelector(href);
+        if (refElement) {
+          refElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          refElement.classList.add('weave-footnote-highlight');
+          setTimeout(function() {
+            refElement.classList.remove('weave-footnote-highlight');
+          }, 2000);
         }
       }
       return;
     }
 
-    // Close popovers when clicking outside
+    // Close overlays when clicking outside
     if (!target.closest('.weave-overlay')) {
-      closeAllPopovers();
+      closeAllOverlays();
     }
   }
 
@@ -183,23 +238,23 @@
   function handleKeydown(event) {
     const target = event.target;
 
-    // Handle Enter/Space on toggles
+    // Handle Enter/Space on triggers
     if (event.key === 'Enter' || event.key === ' ') {
-      const toggle = target.closest('.weave-toggle');
-      if (toggle) {
+      const inlineTrigger = target.closest('.weave-inline-trigger');
+      if (inlineTrigger) {
         event.preventDefault();
-        handleToggle(toggle);
+        handleInlineTrigger(inlineTrigger);
         return;
       }
 
-      const overlayTrigger = target.closest('.weave-trigger');
+      const overlayTrigger = target.closest('.weave-node-link[data-display="overlay"]');
       if (overlayTrigger) {
         event.preventDefault();
         const expansion = overlayTrigger.closest('.weave-overlay');
-        const popover = expansion ? expansion.querySelector('.weave-popover') : null;
-        const isVisible = popover && !popover.hidden;
+        const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+        const isVisible = content && content.classList.contains('active');
         
-        closeAllPopovers();
+        closeAllOverlays();
         
         if (!isVisible) {
           handleOverlay(overlayTrigger, true);
@@ -208,34 +263,9 @@
       }
     }
 
-    // Handle Escape to close popovers
+    // Handle Escape to close overlays
     if (event.key === 'Escape') {
-      closeAllPopovers();
-    }
-  }
-
-  /**
-   * Event delegation handler for hover (overlay mode)
-   */
-  function handleMouseEnter(event) {
-    const trigger = event.target.closest('.weave-trigger');
-    if (trigger) {
-      handleOverlay(trigger, true);
-    }
-  }
-
-  function handleMouseLeave(event) {
-    const overlay = event.target.closest('.weave-overlay');
-    if (overlay) {
-      // Check if we're leaving to the popover
-      const relatedTarget = event.relatedTarget;
-      if (relatedTarget && overlay.contains(relatedTarget)) {
-        return;
-      }
-      const popover = overlay.querySelector('.weave-popover');
-      if (popover) {
-        popover.hidden = true;
-      }
+      closeAllOverlays();
     }
   }
 
@@ -243,17 +273,13 @@
   document.addEventListener('click', handleClick, true);
   document.addEventListener('keydown', handleKeydown, true);
 
-  // Optional: hover behavior for overlays (can be enabled via CSS class)
-  document.addEventListener('mouseenter', handleMouseEnter, true);
-  document.addEventListener('mouseleave', handleMouseLeave, true);
-
-  // Handle window resize - reposition visible popovers
+  // Handle window resize - reposition visible overlays
   window.addEventListener('resize', function() {
-    document.querySelectorAll('.weave-overlay').forEach(function(overlay) {
-      const popover = overlay.querySelector('.weave-popover:not([hidden])');
-      const trigger = overlay.querySelector('.weave-trigger');
-      if (popover && trigger) {
-        positionPopover(trigger, popover);
+    document.querySelectorAll('.weave-overlay').forEach(function(expansion) {
+      const content = expansion.querySelector('.weave-overlay-content.active');
+      const trigger = expansion.querySelector('.weave-node-link');
+      if (content && trigger) {
+        positionOverlay(trigger, content);
       }
     });
   });

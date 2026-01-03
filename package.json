@@ -118,7 +118,9 @@
     "watch:tsc": "tsc --noEmit --watch --preserveWatchOutput",
     "package": "npm run check-types && node esbuild.js --production && npm run copy-assets",
     "lint": "eslint src --ext ts",
-    "test": "node ./out/test/runTest.js"
+    "test": "node ./out/test/runTest.js",
+    "test:weave-example": "npx tsx weave-example.test.ts",
+    "dev": "npm run compile && npm run test:weave-example"
   },
   "devDependencies": {
     "@types/markdown-it": "^13.0.7",
@@ -138,7 +140,9 @@
     "@weave-md/core": "^0.1.0-alpha.0",
     "@weave-md/parse": "^0.1.0-alpha.0",
     "@weave-md/validate": "^0.1.0-alpha.0",
+    "hast-util-to-html": "^9.0.5",
     "katex": "^0.16.9",
+    "mdast-util-to-hast": "^13.2.1",
     "yaml": "^2.3.4"
   }
 }
