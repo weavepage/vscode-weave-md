@@ -91,18 +91,23 @@
   border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
 }
 
+/* Deferred content container - hidden by default */
+.weave-deferred-content {
+  display: none !important;
+}
+
 /* Inline expandable content - hidden by default */
 .weave-inline-content {
   display: none !important;
+}
+
+.weave-inline-content.visible {
+  display: block !important;
   margin: 1rem 0;
   padding: 1rem;
   background: var(--vscode-textBlockQuote-background, #f8f9fa);
   border-left: 3px solid var(--vscode-textLink-foreground, #0066cc);
   border-radius: 4px;
-}
-
-.weave-inline-content.visible {
-  display: block !important;
 }
 
 .weave-inline-content p:last-child {

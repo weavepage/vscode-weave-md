@@ -115,6 +115,14 @@ interface FootnoteEntry {
 }
 
 /**
+ * Inline content entry for deferred rendering
+ */
+interface InlineContentEntry {
+  targetId: string;
+  content: string;
+}
+
+/**
  * Render context for tracking expansion state
  */
 interface RenderContext {
@@ -126,6 +134,8 @@ interface RenderContext {
   // Footnote tracking: map from section ID to footnote entry
   footnotes: Map<string, FootnoteEntry>;
   footnoteRefCount: number;  // Counter for unique ref IDs
+  // Inline content for deferred rendering (to avoid breaking paragraphs)
+  inlineContents: InlineContentEntry[];
 }
 
 /**
@@ -139,7 +149,8 @@ function createRenderContext(): RenderContext {
     sidenoteCount: 0,
     config: getPreviewConfig(),
     footnotes: new Map(),
-    footnoteRefCount: 0
+    footnoteRefCount: 0,
+    inlineContents: []
   };
 }
 
@@ -218,13 +229,13 @@ function renderNodeLink(
   
   switch (display) {
     case 'inline':
-      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath);
+      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
     
     case 'stretch':
       return renderStretchExpansion(targetId, linkText, sectionTitle, content, filePath);
     
     case 'overlay':
-      return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath);
+      return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
     
     case 'footnote':
       return renderFootnoteRef(targetId, linkText, sectionTitle, content, ctx);
@@ -237,7 +248,7 @@ function renderNodeLink(
       return renderMarginNote(targetId, linkText, sectionTitle, content, filePath);
     
     default:
-      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath);
+      return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx);
   }
 }
 
@@ -250,13 +261,16 @@ function isAnchorOnly(linkText: string): boolean {
   return !linkText || !linkText.trim() || linkText.trim() === '';
 }
 
-function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
+function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext): string {
+  // Use template element to hold content without affecting layout
+  const contentTemplate = `<template class="weave-inline-content-template" data-for="${targetId}">${content}</template>`;
+  
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show plus/minus icon
-    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span><div class="weave-inline-content" data-for="${targetId}">${content}</div>`;
+    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>${contentTemplate}`;
   }
-  // Text link: wrap in span to stay inline, content div will be block when visible
-  return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span><div class="weave-inline-content" data-for="${targetId}">${content}</div>`;
+  // Text link with template content
+  return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}`;
 }
 
 function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
@@ -266,12 +280,15 @@ function renderStretchExpansion(targetId: string, linkText: string, title: strin
   return `<div class="weave-expansion weave-stretch" data-weave="1" data-target="${targetId}">${trigger}<div class="weave-inline-content" hidden>${content}</div></div>`;
 }
 
-function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
+function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext): string {
+  // Use template element to hold content without affecting layout
+  const contentTemplate = `<template class="weave-overlay-content-template" data-for="${targetId}">${content}</template>`;
+  
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show info icon
-    return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span><div class="weave-overlay-content" data-for="${targetId}"><div class="weave-overlay-body">${content}</div></div>`;
+    return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}`;
   }
-  return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span><div class="weave-overlay-content" data-for="${targetId}"><div class="weave-overlay-body">${content}</div></div>`;
+  return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>${contentTemplate}`;
 }
 
 /**
@@ -419,7 +436,7 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     return defaultLinkClose(tokens, idx, options, env, self);
   };
 
-  // Wrap the render function to append footnotes at the end
+  // Wrap the render function to append footnotes and deferred content at the end
   const originalRender = md.render.bind(md);
   md.render = function(src: string, env?: WeaveEnv): string {
     // Create a fresh context for each render
@@ -429,6 +446,15 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     // Render the main content
     let html = originalRender(src, renderEnv);
     
+    console.log('[Weave Plugin] Render complete, inlineContents count:', renderEnv.weaveContext?.inlineContents?.length || 0);
+    
+    // Append deferred inline/overlay content (rendered outside paragraphs to avoid breaking them)
+    if (renderEnv.weaveContext && renderEnv.weaveContext.inlineContents.length > 0) {
+      const deferredHtml = renderDeferredContent(renderEnv.weaveContext);
+      console.log('[Weave Plugin] Adding deferred content:', deferredHtml.substring(0, 200));
+      html += deferredHtml;
+    }
+    
     // Append footnotes section if any were collected
     if (renderEnv.weaveContext && renderEnv.weaveContext.footnotes.size > 0) {
       html += renderFootnotesSection(renderEnv.weaveContext);
@@ -436,6 +462,24 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     
     return html;
   };
+}
+
+/**
+ * Renders deferred inline/overlay content at end of document
+ * This avoids breaking paragraph structure with block elements
+ */
+function renderDeferredContent(ctx: RenderContext): string {
+  if (ctx.inlineContents.length === 0) return '';
+  
+  let html = '<div class="weave-deferred-content" style="display:none;">';
+  for (const entry of ctx.inlineContents) {
+    // Inline content
+    html += `<div class="weave-inline-content" data-for="${entry.targetId}">${entry.content}</div>`;
+    // Overlay content (same content, different container)
+    html += `<div class="weave-overlay-content" data-for="${entry.targetId}"><div class="weave-overlay-body">${entry.content}</div></div>`;
+  }
+  html += '</div>';
+  return html;
 }
 
 /**

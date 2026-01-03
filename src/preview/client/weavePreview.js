@@ -21,13 +21,35 @@
    * Handles expand/collapse for inline triggers (text links)
    */
   function handleInlineTrigger(trigger) {
-    // Content is sibling with data-for matching data-target
     const targetId = trigger.getAttribute('data-target');
-    let content = trigger.nextElementSibling;
-    if (!content || !content.classList.contains('weave-inline-content')) {
-      content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    console.log('[Weave] handleInlineTrigger called, targetId:', targetId);
+    
+    // Find or create content element from template
+    let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for template and create content from it
+      const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+      console.log('[Weave] Found template:', template);
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-inline-content';
+        content.setAttribute('data-for', targetId);
+        content.innerHTML = template.innerHTML;
+        // Insert after the trigger's parent paragraph
+        const paragraph = trigger.closest('p');
+        if (paragraph) {
+          paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+        } else {
+          trigger.parentElement.appendChild(content);
+        }
+      }
     }
-    if (!content) return;
+    
+    console.log('[Weave] Found/created content element:', content);
+    if (!content) {
+      console.log('[Weave] No content found for targetId:', targetId);
+      return;
+    }
 
     const isExpanded = trigger.classList.contains('expanded');
 
@@ -47,12 +69,34 @@
    */
   function handleInlineAnchor(anchor) {
     const targetId = anchor.getAttribute('data-target');
-    // Find the content element (sibling or by data-for attribute)
-    let content = anchor.nextElementSibling;
-    if (!content || !content.classList.contains('weave-inline-content')) {
-      content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    console.log('[Weave] handleInlineAnchor called, targetId:', targetId);
+    
+    // Find or create content element from template
+    let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for template and create content from it
+      const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+      console.log('[Weave] Found template:', template);
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-inline-content';
+        content.setAttribute('data-for', targetId);
+        content.innerHTML = template.innerHTML;
+        // Insert after the anchor's parent paragraph
+        const paragraph = anchor.closest('p');
+        if (paragraph) {
+          paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+        } else {
+          anchor.parentElement.appendChild(content);
+        }
+      }
     }
-    if (!content) return;
+    
+    console.log('[Weave] Found/created content element:', content);
+    if (!content) {
+      console.log('[Weave] No content found for targetId:', targetId);
+      return;
+    }
 
     const isExpanded = anchor.classList.contains('expanded');
 
@@ -69,14 +113,29 @@
    * Handles overlay show/hide
    */
   function handleOverlay(trigger, show) {
-    // Content is now a sibling element, not nested
     const targetId = trigger.getAttribute('data-target');
-    let content = trigger.nextElementSibling;
-    if (!content || !content.classList.contains('weave-overlay-content')) {
-      // Fallback: try to find by target ID
-      content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+    console.log('[Weave] handleOverlay called, targetId:', targetId, 'show:', show);
+    
+    // Find or create content element from template
+    let content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for template and create content from it
+      const template = document.querySelector('template.weave-overlay-content-template[data-for="' + targetId + '"]');
+      console.log('[Weave] Found overlay template:', template);
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-overlay-content';
+        content.setAttribute('data-for', targetId);
+        content.innerHTML = '<div class="weave-overlay-body">' + template.innerHTML + '</div>';
+        document.body.appendChild(content);
+      }
     }
-    if (!content) return;
+    
+    console.log('[Weave] Found/created overlay content:', content);
+    if (!content) {
+      console.log('[Weave] No overlay content found for targetId:', targetId);
+      return;
+    }
 
     if (show) {
       content.classList.add('active');
