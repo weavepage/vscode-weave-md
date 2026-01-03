@@ -91,9 +91,9 @@
   border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
 }
 
-/* Inline expandable content - use display:none instead of hidden attr for proper inline behavior */
+/* Inline expandable content - hidden by default */
 .weave-inline-content {
-  display: none;
+  display: none !important;
   margin: 1rem 0;
   padding: 1rem;
   background: var(--vscode-textBlockQuote-background, #f8f9fa);
@@ -101,21 +101,21 @@
   border-radius: 4px;
 }
 
-.weave-inline-content[hidden] {
-  display: none;
+.weave-inline-content.visible {
+  display: block !important;
 }
 
 .weave-inline-content p:last-child {
   margin-bottom: 0;
 }
 
-/* Overlay content */
+/* Overlay content - hidden by default */
 .weave-overlay-content {
+  display: none !important;
   position: fixed;
   z-index: 10000;
   box-sizing: border-box;
   max-width: min(22rem, calc(100vw - 20px));
-  display: inline-block;
   background: var(--vscode-editorWidget-background, #fafafa);
   border-radius: 0.5em;
   border: 1px solid var(--vscode-editorWidget-border, #c3c3c3);
@@ -128,13 +128,10 @@
 }
 
 .weave-overlay-content.active {
+  display: inline-block !important;
   opacity: 0.97;
   transform: scale(1) translateZ(0);
   pointer-events: auto;
-}
-
-.weave-overlay-content[hidden] {
-  display: none;
 }
 
 .weave-overlay-body {

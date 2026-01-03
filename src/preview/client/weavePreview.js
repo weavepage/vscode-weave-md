@@ -21,20 +21,22 @@
    * Handles expand/collapse for inline triggers (text links)
    */
   function handleInlineTrigger(trigger) {
-    const expansion = trigger.closest('.weave-expansion');
-    if (!expansion) return;
-
-    const content = expansion.querySelector('.weave-inline-content');
+    // Content is sibling with data-for matching data-target
+    const targetId = trigger.getAttribute('data-target');
+    let content = trigger.nextElementSibling;
+    if (!content || !content.classList.contains('weave-inline-content')) {
+      content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    }
     if (!content) return;
 
     const isExpanded = trigger.classList.contains('expanded');
 
     if (isExpanded) {
-      content.style.display = 'none';
+      content.classList.remove('visible');
       trigger.classList.remove('expanded');
       trigger.setAttribute('aria-expanded', 'false');
     } else {
-      content.style.display = 'block';
+      content.classList.add('visible');
       trigger.classList.add('expanded');
       trigger.setAttribute('aria-expanded', 'true');
     }
@@ -55,10 +57,10 @@
     const isExpanded = anchor.classList.contains('expanded');
 
     if (isExpanded) {
-      content.style.display = 'none';
+      content.classList.remove('visible');
       anchor.classList.remove('expanded');
     } else {
-      content.style.display = 'block';
+      content.classList.add('visible');
       anchor.classList.add('expanded');
     }
   }
@@ -67,18 +69,22 @@
    * Handles overlay show/hide
    */
   function handleOverlay(trigger, show) {
-    const expansion = trigger.closest('.weave-overlay');
-    if (!expansion) return;
-
-    const content = expansion.querySelector('.weave-overlay-content');
+    // Content is now a sibling element, not nested
+    const targetId = trigger.getAttribute('data-target');
+    let content = trigger.nextElementSibling;
+    if (!content || !content.classList.contains('weave-overlay-content')) {
+      // Fallback: try to find by target ID
+      content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+    }
     if (!content) return;
 
     if (show) {
-      content.hidden = false;
       content.classList.add('active');
-      positionOverlay(trigger, content);
+      // Use setTimeout to ensure display change happens before positioning
+      setTimeout(function() {
+        positionOverlay(trigger, content);
+      }, 0);
     } else {
-      content.hidden = true;
       content.classList.remove('active');
     }
   }
@@ -129,7 +135,6 @@
    */
   function closeAllOverlays() {
     document.querySelectorAll('.weave-overlay-content.active').forEach(function(overlay) {
-      overlay.hidden = true;
       overlay.classList.remove('active');
     });
   }
@@ -161,8 +166,12 @@
     if (overlayAnchor) {
       event.preventDefault();
       event.stopPropagation();
-      const expansion = overlayAnchor.closest('.weave-overlay');
-      const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+      // Content is sibling, not nested
+      let content = overlayAnchor.nextElementSibling;
+      if (!content || !content.classList.contains('weave-overlay-content')) {
+        const targetId = overlayAnchor.getAttribute('data-target');
+        content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+      }
       const isVisible = content && content.classList.contains('active');
       
       closeAllOverlays();
@@ -178,8 +187,12 @@
     if (overlayTrigger) {
       event.preventDefault();
       event.stopPropagation();
-      const expansion = overlayTrigger.closest('.weave-overlay');
-      const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+      // Content is sibling, not nested
+      let content = overlayTrigger.nextElementSibling;
+      if (!content || !content.classList.contains('weave-overlay-content')) {
+        const targetId = overlayTrigger.getAttribute('data-target');
+        content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+      }
       const isVisible = content && content.classList.contains('active');
       
       closeAllOverlays();

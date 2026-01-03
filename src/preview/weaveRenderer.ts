@@ -384,9 +384,13 @@ export function renderWeaveContent(markdown: string, options: RenderOptions = {}
 }
 
 /**
- * Renders section body markdown to HTML
- * Strips frontmatter before rendering
+ * Renders section markdown to HTML
+ * Expects full document with frontmatter - shows error if missing
  */
-export function renderSectionBody(bodyMarkdown: string, options: RenderOptions = {}): string {
-  return renderWeaveContent(bodyMarkdown, options);
+export function renderSectionBody(fullMarkdown: string, options: RenderOptions = {}): string {
+  // Check if document has frontmatter
+  if (!fullMarkdown.trimStart().startsWith('---')) {
+    return `<div class="weave-error">Error: Section is missing YAML frontmatter</div>`;
+  }
+  return renderWeaveContent(fullMarkdown, options);
 }

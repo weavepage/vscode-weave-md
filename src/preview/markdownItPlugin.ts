@@ -147,20 +147,20 @@ function createRenderContext(): RenderContext {
  * Renders section content for embedding using @weave-md/parse
  */
 function renderSectionBody(section: Section, depth: number, ctx: RenderContext): string {
-  const body = section.bodyMarkdown;
+  // Use fullMarkdown which includes frontmatter - renderer will show error if missing
+  const fullDoc = section.fullMarkdown;
   
   // Use the Weave renderer for proper HTML output
-  const html = renderSectionBodyHtml(body, {
+  const html = renderSectionBodyHtml(fullDoc, {
     renderMath: true,
     maxChars: ctx.config.maxExpandedCharsPerRef
   });
   
-  if (body.length > ctx.config.maxExpandedCharsPerRef) {
-    return `<div class="weave-content">${html}</div>
-      <div class="weave-truncated">(Content truncated - ${body.length} chars total)</div>`;
+  if (fullDoc.length > ctx.config.maxExpandedCharsPerRef) {
+    return `${html}<span class="weave-truncated">(Content truncated)</span>`;
   }
   
-  return `<div class="weave-content">${html}</div>`;
+  return html;
 }
 
 /**
@@ -253,10 +253,10 @@ function isAnchorOnly(linkText: string): boolean {
 function renderInlineExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show plus/minus icon
-    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span><span class="weave-inline-content" data-for="${targetId}" hidden>${content}</span>`;
+    return `<span class="weave-inline-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span><div class="weave-inline-content" data-for="${targetId}">${content}</div>`;
   }
-  // Text link: show clickable text
-  return `<span class="weave-expansion weave-inline" data-weave="1" data-target="${targetId}"><span class="weave-inline-trigger" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span><span class="weave-inline-content" hidden>${content}</span></span>`;
+  // Text link: wrap in span to stay inline, content div will be block when visible
+  return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span><div class="weave-inline-content" data-for="${targetId}">${content}</div>`;
 }
 
 function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
@@ -269,9 +269,9 @@ function renderStretchExpansion(targetId: string, linkText: string, title: strin
 function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
   if (isAnchorOnly(linkText)) {
     // Anchor-only: show info icon
-    return `<span class="weave-expansion weave-overlay" data-weave="1" data-target="${targetId}"><span class="weave-overlay-anchor" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span><span class="weave-overlay-content" hidden><span class="weave-overlay-body">${content}</span></span></span>`;
+    return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span><div class="weave-overlay-content" data-for="${targetId}"><div class="weave-overlay-body">${content}</div></div>`;
   }
-  return `<span class="weave-expansion weave-overlay" data-weave="1" data-target="${targetId}"><span class="weave-node-link" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span><span class="weave-overlay-content" hidden><span class="weave-overlay-body">${content}</span></span></span>`;
+  return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span><div class="weave-overlay-content" data-for="${targetId}"><div class="weave-overlay-body">${content}</div></div>`;
 }
 
 /**
