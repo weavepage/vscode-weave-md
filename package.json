@@ -112,7 +112,7 @@
     "vscode:prepublish": "npm run package",
     "compile": "npm run check-types && node esbuild.js && npm run copy-assets",
     "check-types": "tsc --noEmit",
-    "copy-assets": "cp -r src/preview/client out/preview/",
+    "copy-assets": "mkdir -p out/preview/client && cp src/preview/client/*.css out/preview/client/",
     "watch": "npm-run-all -p watch:*",
     "watch:esbuild": "node esbuild.js --watch",
     "watch:tsc": "tsc --noEmit --watch --preserveWatchOutput",

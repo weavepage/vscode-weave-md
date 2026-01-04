@@ -4,7 +4,8 @@ const production = process.argv.includes('--production');
 const watch = process.argv.includes('--watch');
 
 async function main() {
-  const ctx = await esbuild.context({
+  // Extension bundle (Node.js/VS Code)
+  const extensionCtx = await esbuild.context({
     entryPoints: ['src/extension.ts'],
     bundle: true,
     format: 'cjs',
@@ -17,12 +18,25 @@ async function main() {
     logLevel: 'info',
   });
 
+  // Preview client bundle (browser)
+  const previewCtx = await esbuild.context({
+    entryPoints: ['src/preview/client/weavePreview.ts'],
+    bundle: true,
+    format: 'iife',
+    minify: production,
+    sourcemap: !production,
+    sourcesContent: false,
+    platform: 'browser',
+    outfile: 'out/preview/client/weavePreview.js',
+    logLevel: 'info',
+  });
+
   if (watch) {
-    await ctx.watch();
+    await Promise.all([extensionCtx.watch(), previewCtx.watch()]);
     console.log('Watching for changes...');
   } else {
-    await ctx.rebuild();
-    await ctx.dispose();
+    await Promise.all([extensionCtx.rebuild(), previewCtx.rebuild()]);
+    await Promise.all([extensionCtx.dispose(), previewCtx.dispose()]);
   }
 }
 

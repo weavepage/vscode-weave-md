@@ -8,7 +8,16 @@
  * - No runtime fetch/RPC - scripts only manipulate DOM
  */
 
-(function() {
+// Make this file a module so we can augment the global scope
+export {};
+
+declare global {
+  interface Window {
+    __weavePreviewInitialized?: boolean;
+  }
+}
+
+(function(): void {
   'use strict';
 
   // Idempotency check - only initialize once
@@ -20,24 +29,24 @@
   /**
    * Handles expand/collapse for inline triggers (text links)
    */
-  function handleInlineTrigger(trigger) {
+  function handleInlineTrigger(trigger: HTMLElement): void {
     const targetId = trigger.getAttribute('data-target');
     
     // Find or create content element from template
-    let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    let content = document.querySelector<HTMLElement>('.weave-inline-content[data-for="' + targetId + '"]');
     if (!content) {
       // Look for template and create content from it
-      const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+      const template = document.querySelector<HTMLTemplateElement>('template.weave-inline-content-template[data-for="' + targetId + '"]');
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-inline-content';
-        content.setAttribute('data-for', targetId);
+        content.setAttribute('data-for', targetId ?? '');
         content.innerHTML = template.innerHTML;
         // Insert after the trigger's parent paragraph
         const paragraph = trigger.closest('p');
-        if (paragraph) {
+        if (paragraph && paragraph.parentElement) {
           paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
-        } else {
+        } else if (trigger.parentElement) {
           trigger.parentElement.appendChild(content);
         }
       }
@@ -63,24 +72,24 @@
   /**
    * Handles expand/collapse for inline anchor icons
    */
-  function handleInlineAnchor(anchor) {
+  function handleInlineAnchor(anchor: HTMLElement): void {
     const targetId = anchor.getAttribute('data-target');
     
     // Find or create content element from template
-    let content = document.querySelector('.weave-inline-content[data-for="' + targetId + '"]');
+    let content = document.querySelector<HTMLElement>('.weave-inline-content[data-for="' + targetId + '"]');
     if (!content) {
       // Look for template and create content from it
-      const template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+      const template = document.querySelector<HTMLTemplateElement>('template.weave-inline-content-template[data-for="' + targetId + '"]');
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-inline-content';
-        content.setAttribute('data-for', targetId);
+        content.setAttribute('data-for', targetId ?? '');
         content.innerHTML = template.innerHTML;
         // Insert after the anchor's parent paragraph
         const paragraph = anchor.closest('p');
-        if (paragraph) {
+        if (paragraph && paragraph.parentElement) {
           paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
-        } else {
+        } else if (anchor.parentElement) {
           anchor.parentElement.appendChild(content);
         }
       }
@@ -104,32 +113,32 @@
   /**
    * Handles overlay show/hide
    */
-  function handleOverlay(trigger, show) {
+  function handleOverlay(trigger: HTMLElement, show: boolean): void {
     const targetId = trigger.getAttribute('data-target');
     const isNested = trigger.getAttribute('data-nested') === '1';
     
     // Find or create content element from template
-    let content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+    let content = document.querySelector<HTMLElement>('.weave-overlay-content[data-for="' + targetId + '"]');
     if (!content) {
       // Look for overlay template first
-      let template = document.querySelector('template.weave-overlay-content-template[data-for="' + targetId + '"]');
+      let template = document.querySelector<HTMLTemplateElement>('template.weave-overlay-content-template[data-for="' + targetId + '"]');
       
       // If not found, try inline template (content is the same)
       if (!template) {
-        template = document.querySelector('template.weave-inline-content-template[data-for="' + targetId + '"]');
+        template = document.querySelector<HTMLTemplateElement>('template.weave-inline-content-template[data-for="' + targetId + '"]');
       }
       
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-overlay-content';
-        content.setAttribute('data-for', targetId);
+        content.setAttribute('data-for', targetId ?? '');
         content.innerHTML = '<div class="weave-overlay-body">' + template.innerHTML + '</div>';
         document.body.appendChild(content);
       } else if (isNested) {
         // For nested links without templates, create placeholder
         content = document.createElement('div');
         content.className = 'weave-overlay-content';
-        content.setAttribute('data-for', targetId);
+        content.setAttribute('data-for', targetId ?? '');
         content.innerHTML = '<div class="weave-overlay-body"><p><em>Content for "' + targetId + '" - expand from main document to view.</em></p></div>';
         document.body.appendChild(content);
       }
@@ -142,8 +151,8 @@
     if (show) {
       content.classList.add('active');
       // Use setTimeout to ensure display change happens before positioning
-      setTimeout(function() {
-        positionOverlay(trigger, content);
+      setTimeout(function(): void {
+        positionOverlay(trigger, content!);
       }, 0);
     } else {
       content.classList.remove('active');
@@ -153,7 +162,7 @@
   /**
    * Positions an overlay relative to its trigger
    */
-  function positionOverlay(trigger, overlay) {
+  function positionOverlay(trigger: HTMLElement, overlay: HTMLElement): void {
     const triggerRect = trigger.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -194,8 +203,8 @@
   /**
    * Closes all open overlays
    */
-  function closeAllOverlays() {
-    document.querySelectorAll('.weave-overlay-content.active').forEach(function(overlay) {
+  function closeAllOverlays(): void {
+    document.querySelectorAll<HTMLElement>('.weave-overlay-content.active').forEach(function(overlay): void {
       overlay.classList.remove('active');
     });
   }
@@ -203,11 +212,11 @@
   /**
    * Event delegation handler for clicks
    */
-  function handleClick(event) {
-    const target = event.target;
+  function handleClick(event: MouseEvent): void {
+    const target = event.target as HTMLElement;
 
     // Handle inline trigger clicks (text links)
-    const inlineTrigger = target.closest('.weave-inline-trigger');
+    const inlineTrigger = target.closest<HTMLElement>('.weave-inline-trigger');
     if (inlineTrigger) {
       event.preventDefault();
       handleInlineTrigger(inlineTrigger);
@@ -215,7 +224,7 @@
     }
 
     // Handle inline anchor clicks (icon-only)
-    const inlineAnchor = target.closest('.weave-inline-anchor');
+    const inlineAnchor = target.closest<HTMLElement>('.weave-inline-anchor');
     if (inlineAnchor) {
       event.preventDefault();
       handleInlineAnchor(inlineAnchor);
@@ -223,15 +232,15 @@
     }
 
     // Handle overlay anchor clicks (icon-only)
-    const overlayAnchor = target.closest('.weave-overlay-anchor');
+    const overlayAnchor = target.closest<HTMLElement>('.weave-overlay-anchor');
     if (overlayAnchor) {
       event.preventDefault();
       event.stopPropagation();
       // Content is sibling, not nested
-      let content = overlayAnchor.nextElementSibling;
+      let content = overlayAnchor.nextElementSibling as HTMLElement | null;
       if (!content || !content.classList.contains('weave-overlay-content')) {
         const targetId = overlayAnchor.getAttribute('data-target');
-        content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+        content = document.querySelector<HTMLElement>('.weave-overlay-content[data-for="' + targetId + '"]');
       }
       const isVisible = content && content.classList.contains('active');
       
@@ -244,15 +253,15 @@
     }
 
     // Handle overlay trigger clicks (node-link with overlay display)
-    const overlayTrigger = target.closest('.weave-node-link[data-display="overlay"]');
+    const overlayTrigger = target.closest<HTMLElement>('.weave-node-link[data-display="overlay"]');
     if (overlayTrigger) {
       event.preventDefault();
       event.stopPropagation();
       // Content is sibling, not nested
-      let content = overlayTrigger.nextElementSibling;
+      let content = overlayTrigger.nextElementSibling as HTMLElement | null;
       if (!content || !content.classList.contains('weave-overlay-content')) {
         const targetId = overlayTrigger.getAttribute('data-target');
-        content = document.querySelector('.weave-overlay-content[data-for="' + targetId + '"]');
+        content = document.querySelector<HTMLElement>('.weave-overlay-content[data-for="' + targetId + '"]');
       }
       const isVisible = content && content.classList.contains('active');
       
@@ -265,16 +274,16 @@
     }
 
     // Handle footnote reference clicks (jump to footnote at bottom)
-    const fnRefLink = target.closest('.weave-footnote-link, .weave-footnote-ref a');
+    const fnRefLink = target.closest<HTMLAnchorElement>('.weave-footnote-link, .weave-footnote-ref a');
     if (fnRefLink) {
       const href = fnRefLink.getAttribute('href');
       if (href && href.startsWith('#fn-')) {
         event.preventDefault();
-        const footnote = document.querySelector(href);
+        const footnote = document.querySelector<HTMLElement>(href);
         if (footnote) {
           footnote.scrollIntoView({ behavior: 'smooth', block: 'center' });
           footnote.classList.add('weave-footnote-highlight');
-          setTimeout(function() {
+          setTimeout(function(): void {
             footnote.classList.remove('weave-footnote-highlight');
           }, 2000);
         }
@@ -283,16 +292,16 @@
     }
 
     // Handle footnote backref clicks (jump back to reference)
-    const fnBackref = target.closest('.weave-footnote-backref');
+    const fnBackref = target.closest<HTMLAnchorElement>('.weave-footnote-backref');
     if (fnBackref) {
       const href = fnBackref.getAttribute('href');
       if (href && href.startsWith('#fnref-')) {
         event.preventDefault();
-        const refElement = document.querySelector(href);
+        const refElement = document.querySelector<HTMLElement>(href);
         if (refElement) {
           refElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
           refElement.classList.add('weave-footnote-highlight');
-          setTimeout(function() {
+          setTimeout(function(): void {
             refElement.classList.remove('weave-footnote-highlight');
           }, 2000);
         }
@@ -309,23 +318,23 @@
   /**
    * Event delegation handler for keyboard events
    */
-  function handleKeydown(event) {
-    const target = event.target;
+  function handleKeydown(event: KeyboardEvent): void {
+    const target = event.target as HTMLElement;
 
     // Handle Enter/Space on triggers
     if (event.key === 'Enter' || event.key === ' ') {
-      const inlineTrigger = target.closest('.weave-inline-trigger');
+      const inlineTrigger = target.closest<HTMLElement>('.weave-inline-trigger');
       if (inlineTrigger) {
         event.preventDefault();
         handleInlineTrigger(inlineTrigger);
         return;
       }
 
-      const overlayTrigger = target.closest('.weave-node-link[data-display="overlay"]');
+      const overlayTrigger = target.closest<HTMLElement>('.weave-node-link[data-display="overlay"]');
       if (overlayTrigger) {
         event.preventDefault();
         const expansion = overlayTrigger.closest('.weave-overlay');
-        const content = expansion ? expansion.querySelector('.weave-overlay-content') : null;
+        const content = expansion ? expansion.querySelector<HTMLElement>('.weave-overlay-content') : null;
         const isVisible = content && content.classList.contains('active');
         
         closeAllOverlays();
@@ -348,10 +357,10 @@
   document.addEventListener('keydown', handleKeydown, true);
 
   // Handle window resize - reposition visible overlays
-  window.addEventListener('resize', function() {
-    document.querySelectorAll('.weave-overlay').forEach(function(expansion) {
-      const content = expansion.querySelector('.weave-overlay-content.active');
-      const trigger = expansion.querySelector('.weave-node-link');
+  window.addEventListener('resize', function(): void {
+    document.querySelectorAll<HTMLElement>('.weave-overlay').forEach(function(expansion): void {
+      const content = expansion.querySelector<HTMLElement>('.weave-overlay-content.active');
+      const trigger = expansion.querySelector<HTMLElement>('.weave-node-link');
       if (content && trigger) {
         positionOverlay(trigger, content);
       }
