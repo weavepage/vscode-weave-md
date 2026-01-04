@@ -623,6 +623,9 @@ export function createWeaveFormatPlugin(md: MarkdownIt): void {
       case 'video':
         return renderVideoBlock(content);
       
+      case 'embed':
+        return renderEmbedBlock(content);
+      
       case 'pre':
         return renderPreBlock(content);
       
@@ -748,6 +751,44 @@ function renderVideoBlock(content: string): string {
   
   return `<figure class="weave-media weave-video" data-weave="1">
     <video controls ${width} src="${escapeHtml(file)}"></video>
+    ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''}
+  </figure>`;
+}
+
+function renderEmbedBlock(content: string): string {
+  const data = parseYamlBlock(content);
+  const url = String(data.url || '');
+  const caption = String(data.caption || '');
+  
+  if (!url) {
+    return `<div class="weave-media weave-embed weave-error" data-weave="1">
+      <span class="weave-error">Missing url in embed block</span>
+    </div>`;
+  }
+  
+  // Extract YouTube video ID for thumbnail display
+  // Show thumbnail first, then replace with iframe on click (lazy load pattern)
+  const youtubeMatch = url.match(/(?:youtube\.com\/embed\/|youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (youtubeMatch) {
+    const videoId = youtubeMatch[1];
+    const thumbnailUrl = `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`;
+    const embedUrl = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
+    
+    return `<figure class="weave-media weave-embed weave-embed-youtube" data-weave="1" data-video-id="${escapeHtml(videoId)}">
+      <div class="weave-embed-container" data-embed-url="${escapeHtml(embedUrl)}">
+        <img src="${escapeHtml(thumbnailUrl)}" alt="YouTube video thumbnail" class="weave-embed-thumbnail" />
+        <button class="weave-embed-play-button" type="button" aria-label="Play video">▶</button>
+      </div>
+      ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''}
+    </figure>`;
+  }
+  
+  // For non-YouTube embeds, show a link (iframes are blocked by VS Code CSP)
+  return `<figure class="weave-media weave-embed" data-weave="1">
+    <a href="${escapeHtml(url)}" class="weave-embed-link weave-embed-external" title="Open in browser">
+      <span class="weave-embed-icon">🔗</span>
+      <span class="weave-embed-url">${escapeHtml(url)}</span>
+    </a>
     ${caption ? `<figcaption>${escapeHtml(caption)}</figcaption>` : ''}
   </figure>`;
 }

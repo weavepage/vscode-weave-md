@@ -273,6 +273,28 @@ declare global {
       return;
     }
 
+    // Handle YouTube embed play button clicks - replace thumbnail with iframe
+    const playButton = target.closest<HTMLElement>('.weave-embed-play-button');
+    if (playButton) {
+      event.preventDefault();
+      const container = playButton.closest<HTMLElement>('.weave-embed-container');
+      if (container) {
+        const embedUrl = container.getAttribute('data-embed-url');
+        if (embedUrl) {
+          const iframe = document.createElement('iframe');
+          iframe.src = embedUrl;
+          iframe.setAttribute('frameborder', '0');
+          iframe.setAttribute('allowfullscreen', '');
+          iframe.setAttribute('allow', 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture');
+          iframe.className = 'weave-embed-iframe';
+          container.innerHTML = '';
+          container.appendChild(iframe);
+          container.classList.add('weave-embed-playing');
+        }
+      }
+      return;
+    }
+
     // Handle footnote reference clicks (jump to footnote at bottom)
     const fnRefLink = target.closest<HTMLAnchorElement>('.weave-footnote-link, .weave-footnote-ref a');
     if (fnRefLink) {
