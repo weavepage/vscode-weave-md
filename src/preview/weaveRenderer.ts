@@ -334,18 +334,46 @@ function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
 }
 
 /**
- * Transforms weaveNodeLink nodes in mdast to HTML nodes
- * @weave-md/parse creates custom weaveNodeLink nodes that toHast doesn't handle
+ * Transforms custom mdast nodes (weaveNodeLink, inlineMath) to HTML-compatible nodes
+ * @weave-md/parse creates custom nodes that toHast doesn't handle natively
  */
-function transformMdastNodeLinks(tree: unknown): void {
+function transformMdastCustomNodes(tree: unknown, renderMath: boolean): void {
   function visit(node: unknown): void {
     if (!node || typeof node !== 'object') return;
     
-    const n = node as { type?: string; children?: unknown[]; url?: string; title?: string; value?: string };
+    const n = node as { type?: string; children?: unknown[]; url?: string; title?: string; value?: string; data?: Record<string, unknown> };
     
-    // Recurse into children FIRST (before we might delete them)
+    // Recurse into children FIRST (before we might modify them)
     if (Array.isArray(n.children)) {
       n.children.forEach(visit);
+    }
+    
+    // Handle inlineMath nodes created by @weave-md/parse
+    if (n.type === 'inlineMath') {
+      const mathContent = n.value || '';
+      let html: string;
+      
+      if (renderMath) {
+        try {
+          const katex = require('katex');
+          const rendered = katex.renderToString(mathContent.trim(), {
+            displayMode: false,
+            throwOnError: false,
+            output: 'html'
+          });
+          html = rendered;
+        } catch {
+          html = `<code>${escapeHtml(mathContent)}</code>`;
+        }
+      } else {
+        html = `<code>${escapeHtml(mathContent)}</code>`;
+      }
+      
+      // Convert to HTML node - clear data to prevent toHast from using old hName/hProperties
+      n.type = 'html';
+      n.value = `<span class="weave-math-inline">${html}</span>`;
+      delete n.children;
+      delete n.data;
     }
     
     if (n.type === 'weaveNodeLink') {
@@ -400,11 +428,12 @@ export function renderWeaveContent(markdown: string, options: RenderOptions = {}
     // Parse to mdast using @weave-md/parse
     const { tree } = parseToMdast(markdown);
     
-    // Transform weaveNodeLink nodes in mdast before converting to hast
-    transformMdastNodeLinks(tree);
+    // Transform custom mdast nodes (weaveNodeLink, inlineMath) before converting to hast
+    const renderMath = options.renderMath !== false;
+    transformMdastCustomNodes(tree, renderMath);
     
-    // Convert mdast to hast
-    const hast = toHast(tree as MdastRoot) as HastRoot;
+    // Convert mdast to hast (allowDangerousHtml needed for html nodes from inlineMath transform)
+    const hast = toHast(tree as MdastRoot, { allowDangerousHtml: true }) as HastRoot;
     
     // Transform hast to handle Weave-specific elements
     const transformedHast = transformHast(hast, options);
