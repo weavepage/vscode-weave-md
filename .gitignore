@@ -3,3 +3,9 @@ node_modules/
 .vscode-test/
 *.vsix
 .DS_Store
+
+# Weave Dev
+/dev-example
+weave-example.html
+/weave-example_files
+weave-example.test.ts

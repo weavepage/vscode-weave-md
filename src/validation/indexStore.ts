@@ -9,6 +9,7 @@ export interface Section {
   peek?: string;
   uri: vscode.Uri;
   bodyMarkdown: string;
+  fullMarkdown: string; // Complete document including frontmatter
   frontmatterRange?: vscode.Range;
 }
 

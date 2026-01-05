@@ -212,6 +212,7 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
         peek: frontmatter.peek as string | undefined,
         uri: document.uri,
         bodyMarkdown,
+        fullMarkdown: text,
         frontmatterRange: fmRange
       });
     }

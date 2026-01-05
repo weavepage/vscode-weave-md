@@ -1,0 +1,606 @@
+/**
+ * Weave Preview Styles
+ * 
+ * Constraints (from plan):
+ * - All styles must be strictly namespaced (e.g. .weave-*)
+ * - Must not style global HTML tags (a, p, sup, code, etc.)
+ * - Styling should inherit from the active VS Code theme wherever possible
+ * - Layout must degrade gracefully on narrow or constrained preview widths
+ */
+
+/* Base expansion container */
+.weave-expansion {
+  display: inline;
+}
+
+.weave-expansion.weave-stretch {
+  display: block;
+  margin: 0.5em 0;
+}
+
+/* Anchor icons */
+.weave-icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: middle;
+}
+
+.weave-overlay-anchor,
+.weave-inline-anchor {
+  display: inline;
+  color: var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+}
+
+.weave-overlay-anchor:hover,
+.weave-inline-anchor:hover {
+  color: var(--vscode-textLink-activeForeground, #0052a3);
+}
+
+.weave-overlay-anchor:focus,
+.weave-inline-anchor:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+/* Plus/minus toggle for inline anchors */
+.weave-inline-anchor .weave-icon-minus {
+  display: none;
+}
+
+.weave-inline-anchor.expanded .weave-icon-plus {
+  display: none;
+}
+
+.weave-inline-anchor.expanded .weave-icon-minus {
+  display: inline;
+}
+
+/* Node links - matches weave-example.html */
+.weave-node-link {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+  position: relative;
+}
+
+.weave-node-link:hover {
+  background: var(--vscode-textLink-activeForeground, #f0f7ff);
+}
+
+/* Inline trigger - clickable text link */
+.weave-inline-trigger {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+}
+
+.weave-inline-trigger:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-inline-trigger:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-inline-trigger.expanded {
+  background: var(--vscode-editor-selectionBackground, #e8f4ff);
+  border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
+}
+
+/* Deferred content container - hidden by default */
+.weave-deferred-content {
+  display: none !important;
+}
+
+/* Inline expandable content - hidden by default */
+.weave-inline-content {
+  display: none !important;
+}
+
+.weave-inline-content.visible {
+  display: block !important;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--vscode-textBlockQuote-background, #f8f9fa);
+  border-left: 3px solid var(--vscode-textLink-foreground, #0066cc);
+  border-radius: 4px;
+}
+
+.weave-inline-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* Overlay content - hidden by default */
+.weave-overlay-content {
+  display: none !important;
+  position: fixed;
+  z-index: 10000;
+  box-sizing: border-box;
+  max-width: min(22rem, calc(100vw - 20px));
+  background: var(--vscode-editorWidget-background, #fafafa);
+  border-radius: 0.5em;
+  border: 1px solid var(--vscode-editorWidget-border, #c3c3c3);
+  box-shadow: 0px 0px 8px rgba(0, 0, 0, 0.3);
+  opacity: 0;
+  transform: scale(0.1) translateZ(0);
+  transform-origin: 50% 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+
+.weave-overlay-content.active {
+  display: inline-block !important;
+  opacity: 0.97;
+  transform: scale(1) translateZ(0);
+  pointer-events: auto;
+}
+
+.weave-overlay-body {
+  padding: 0.6em 0.8em;
+  line-height: 1.5;
+  font-size: 0.95em;
+  max-height: 15em;
+  overflow: auto;
+}
+
+.weave-overlay-body p {
+  margin: 0;
+}
+
+.weave-overlay-body p + p {
+  margin-top: 0.5em;
+}
+
+/* Content area */
+.weave-content {
+  white-space: pre-wrap;
+  font-size: 0.95em;
+  line-height: 1.5;
+}
+
+.weave-truncated {
+  font-size: 0.85em;
+  font-style: italic;
+  opacity: 0.7;
+  margin-top: 0.5em;
+}
+
+/* Missing/error states */
+.weave-link.weave-missing,
+.weave-link.weave-cycle,
+.weave-link.weave-depth-limit,
+.weave-link.weave-ref-limit {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+
+.weave-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75em;
+  padding: 0 0.35em;
+  border-radius: 3px;
+  font-weight: 600;
+}
+
+.weave-badge-missing {
+  background-color: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+}
+
+.weave-badge-cycle {
+  background-color: var(--vscode-inputValidation-warningBackground, #352a05);
+  color: var(--vscode-inputValidation-warningForeground, #cca700);
+}
+
+.weave-badge-depth,
+.weave-badge-limit {
+  background-color: var(--vscode-inputValidation-infoBackground, #063b49);
+  color: var(--vscode-inputValidation-infoForeground, #75beff);
+}
+
+/* Overlay mode */
+.weave-overlay {
+  position: relative;
+  display: inline;
+}
+
+.weave-trigger {
+  cursor: pointer;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.weave-trigger:hover {
+  text-decoration-style: solid;
+}
+
+.weave-trigger:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-popover {
+  position: fixed;
+  z-index: 1000;
+  max-width: min(400px, 90vw);
+  max-height: 300px;
+  overflow: auto;
+  padding: 0.75em;
+  background-color: var(--vscode-editorWidget-background, #252526);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+}
+
+/* Footnote references (inline) */
+.weave-footnote-ref {
+  font-size: 0.75em;
+  vertical-align: super;
+}
+
+.weave-footnote-ref a {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+}
+
+.weave-footnote-ref a:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+/* Text-linked footnote references */
+.weave-footnote-link {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+}
+
+.weave-footnote-link-text {
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+}
+
+.weave-footnote-link:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-footnote-link sup {
+  font-size: 0.75em;
+  margin-left: 0.1em;
+}
+
+/* Footnotes section (bottom of page) */
+.weave-footnotes-separator {
+  margin: 3rem 0 2rem;
+  border: none;
+  border-top: 1px solid var(--vscode-editorWidget-border, #ddd);
+}
+
+.weave-footnotes {
+  font-size: 0.9em;
+  color: var(--vscode-descriptionForeground, #666);
+}
+
+.weave-footnotes-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.weave-footnote {
+  display: grid;
+  grid-template-columns: 2.5em 1fr;
+  margin-bottom: 1rem;
+}
+
+.weave-footnote-marker {
+  text-align: left;
+}
+
+.weave-footnote-backref {
+  text-decoration: none;
+  color: var(--vscode-textLink-foreground, #0066cc);
+}
+
+.weave-footnote-backref:hover {
+  text-decoration: underline;
+}
+
+.weave-footnote-content {
+  min-width: 0;
+}
+
+.weave-footnote-content p:first-child {
+  display: inline;
+}
+
+.weave-footnote-content p + p {
+  margin-top: 0.5rem;
+}
+
+/* Footnote highlight animation */
+.weave-footnote-highlight {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055);
+  transition: background-color 0.3s ease;
+}
+
+@keyframes weave-highlight-fade {
+  0% { background-color: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055); }
+  100% { background-color: transparent; }
+}
+
+/* Sidenote mode */
+.weave-sidenote {
+  display: inline;
+}
+
+/* .weave-sn-text inherits normal text styling */
+
+.weave-sn-ref {
+  font-size: 0.85em;
+  vertical-align: super;
+  line-height: 0;
+  margin-left: 0.1em;
+  color: var(--vscode-textLink-foreground, #3794ff);
+}
+
+.weave-sn-body {
+  display: block;
+  float: right;
+  clear: right;
+  width: 200px;
+  margin: 0 -220px 0.5em 0.5em;
+  padding: 0.5em;
+  font-size: 0.85em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+}
+
+.weave-sn-num {
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  margin-right: 0.25em;
+}
+
+/* Fallback for narrow widths - sidenotes become inline */
+@media (max-width: 600px) {
+  .weave-sn-body {
+    float: none;
+    width: auto;
+    margin: 0.5em 0;
+  }
+}
+
+/* Margin note mode */
+.weave-margin {
+  display: inline;
+}
+
+/* .weave-margin-text inherits normal text styling */
+
+.weave-margin-body {
+  display: block;
+  float: right;
+  clear: right;
+  width: 180px;
+  margin: 0 -200px 0.5em 0.5em;
+  padding: 0.5em;
+  font-size: 0.85em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-radius: 3px;
+}
+
+/* Fallback for narrow widths - margin notes become inline */
+@media (max-width: 600px) {
+  .weave-margin-body {
+    float: none;
+    width: auto;
+    margin: 0.5em 0;
+    border-left: 2px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.3));
+    border-radius: 0 3px 3px 0;
+  }
+}
+
+/* Math blocks */
+.weave-math {
+  overflow-x: auto;
+}
+
+.weave-math-block {
+  display: block;
+  margin: 1em 0;
+  padding: 0.5em;
+  text-align: center;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-radius: 3px;
+}
+
+.weave-math-inline {
+  display: inline;
+  font-size: 1em;
+  vertical-align: baseline;
+}
+
+.weave-math-error {
+  border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100);
+}
+
+.weave-error {
+  color: var(--vscode-inputValidation-errorForeground, #f48771);
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+.weave-math-block .weave-error {
+  display: block;
+}
+
+/* Media blocks */
+.weave-media {
+  margin: 1em 0;
+}
+
+.weave-media.weave-error {
+  padding: 0.5em;
+  background-color: var(--vscode-inputValidation-errorBackground, #5a1d1d);
+  border-radius: 3px;
+}
+
+.weave-image img,
+.weave-video video {
+  max-width: 100%;
+  height: auto;
+  border-radius: 3px;
+}
+
+.weave-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 0.5em;
+}
+
+.weave-gallery-grid img {
+  width: 100%;
+  height: auto;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.weave-audio audio {
+  width: 100%;
+  max-width: 400px;
+}
+
+.weave-media figcaption {
+  margin-top: 0.5em;
+  font-size: 0.9em;
+  font-style: italic;
+  opacity: 0.8;
+  text-align: center;
+}
+
+/* Preformatted text */
+.weave-pre {
+  white-space: pre;
+  font-family: var(--vscode-editor-font-family, monospace);
+  font-size: var(--vscode-editor-font-size, 14px);
+  padding: 0.5em;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.1));
+  border-radius: 3px;
+  overflow-x: auto;
+}
+
+.weave-preformatted {
+  white-space: pre-wrap;
+  margin-bottom: 1em;
+}
+
+/* Embed blocks */
+.weave-embed iframe {
+  max-width: 100%;
+  border-radius: 3px;
+  background: #000;
+}
+
+.weave-embed iframe:not([width]):not([height]) {
+  aspect-ratio: 16 / 9;
+  width: 100%;
+}
+
+/* YouTube embed thumbnail (VS Code CSP blocks iframes) */
+.weave-embed-youtube {
+  display: block;
+}
+
+.weave-embed-link {
+  display: block;
+  position: relative;
+  text-decoration: none;
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.weave-embed-thumbnail {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 3px;
+}
+
+.weave-embed-play-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 3rem;
+  color: white;
+  background: rgba(0, 0, 0, 0.7);
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.weave-embed-link:hover .weave-embed-play-button,
+.weave-embed-container:hover .weave-embed-play-button {
+  background: rgba(255, 0, 0, 0.9);
+}
+
+/* YouTube iframe when playing */
+.weave-embed-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+}
+
+.weave-embed-playing {
+  background: #000;
+}
+
+.weave-embed-iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border: none;
+  border-radius: 3px;
+}
+
+/* External embed link fallback */
+.weave-embed-external {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  padding: 1em;
+  background: var(--vscode-editor-background, #1e1e1e);
+  border: 1px solid var(--vscode-editorWidget-border, #454545);
+  border-radius: 3px;
+  color: var(--vscode-textLink-foreground, #0066cc);
+}
+
+.weave-embed-icon {
+  font-size: 1.5em;
+}
+
+.weave-embed-url {
+  word-break: break-all;
+}
+
+/* Gallery without grid (simple layout from weaveRenderer) */
+.weave-gallery figure {
+  margin: 0;
+}
+
+.weave-gallery figure + figure {
+  margin-top: 0.5em;
+}
