@@ -48,8 +48,29 @@
       {
         "command": "weave.validateWorkspace",
         "title": "Weave: Validate Workspace"
+      },
+      {
+        "command": "weave.createNodeFromSelection",
+        "title": "Weave: Create Node from Selection"
       }
     ],
+    "keybindings": [
+      {
+        "command": "weave.createNodeFromSelection",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "editorHasSelection && editorLangId == markdown"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "weave.createNodeFromSelection",
+          "when": "editorHasSelection && editorLangId == markdown",
+          "group": "weave"
+        }
+      ]
+    },
     "configuration": {
       "title": "Weave",
       "properties": {
@@ -97,6 +118,23 @@
           "type": "boolean",
           "default": false,
           "description": "Treat unknown node: URL parameters as warnings (true) instead of informational messages (false)"
+        },
+        "weave.nodeDirectory": {
+          "type": "string",
+          "default": "sections",
+          "description": "Directory where new nodes are created (relative to workspace root)"
+        },
+        "weave.nodeLinkFormat": {
+          "type": "string",
+          "enum": ["weave", "markdown"],
+          "default": "weave",
+          "description": "Link format when replacing selection: 'weave' for [text](node:id) or 'markdown' for [text](./path/id.md)"
+        },
+        "weave.nodeIdStrategy": {
+          "type": "string",
+          "enum": ["random"],
+          "default": "random",
+          "description": "Strategy for generating node IDs"
         }
       }
     },
