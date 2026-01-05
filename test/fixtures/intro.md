@@ -126,5 +126,3 @@ controls: true
 ```embed
 url: https://www.youtube.com/embed/DnWocYKqvhw?si=o_pYDp2ZvA_U3J_w
 ```
-
-This is some new text. This is text that I want to extract to node. This is more text to test the extraction functionality.

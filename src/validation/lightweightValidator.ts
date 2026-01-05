@@ -251,7 +251,7 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
 
     // Check for invalid display values
     if (link.parsed.display) {
-      const validDisplayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'page'];
+      const validDisplayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
       if (!validDisplayValues.includes(link.parsed.display)) {
         diagnostics.push(new vscode.Diagnostic(
           link.range,

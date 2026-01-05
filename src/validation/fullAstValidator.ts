@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError, Diagnostic as WeaveDiagnostic } from '@weave-md/parse';
+import { validateWeaveBlocks, validateInlineSyntax, validateInlineMath, validateInlineSubstitute } from '@weave-md/validate';
 
 /**
  * Full AST Validator using @weave-md/parse for comprehensive validation
@@ -28,6 +29,28 @@ export class FullAstValidator {
           diagnostics.push(this.toVscodeDiagnostic(diag));
         }
       }
+
+      // Additional validation using @weave-md/validate functions
+      const blockDiagnostics = validateWeaveBlocks(text, document.uri.fsPath);
+      for (const diag of blockDiagnostics) {
+        diagnostics.push(this.toVscodeDiagnostic(diag));
+      }
+
+      const inlineDiagnostics = validateInlineSyntax(text, document.uri.fsPath);
+      for (const diag of inlineDiagnostics) {
+        diagnostics.push(this.toVscodeDiagnostic(diag));
+      }
+
+      const mathDiagnostics = validateInlineMath(text, document.uri.fsPath);
+      for (const diag of mathDiagnostics) {
+        diagnostics.push(this.toVscodeDiagnostic(diag));
+      }
+
+      const subDiagnostics = validateInlineSubstitute(text, document.uri.fsPath);
+      for (const diag of subDiagnostics) {
+        diagnostics.push(this.toVscodeDiagnostic(diag));
+      }
+
     } catch (error) {
       if (error instanceof WeaveParseError) {
         diagnostics.push(new vscode.Diagnostic(

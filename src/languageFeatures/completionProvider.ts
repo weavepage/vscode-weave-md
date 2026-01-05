@@ -54,7 +54,7 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
     // Stage 3: Display value completion - must check before parameter completion
     const displayValueMatch = beforeCursor.match(/\]\(node:[^)]*[?&]display=([^&)\s]*)$/);
     if (displayValueMatch) {
-      const displayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'page'];
+      const displayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
       const partial = displayValueMatch[1];
 
       return displayValues
@@ -177,7 +177,7 @@ function getDisplayDescription(value: string): string {
     'footnote': 'Show as numbered footnote at bottom',
     'sidenote': 'Show as numbered note in the margin',
     'margin': 'Show as unnumbered margin note',
-    'page': 'Full page reference'
+    'panel': 'Full page reference'
   };
   return descriptions[value] || value;
 }
