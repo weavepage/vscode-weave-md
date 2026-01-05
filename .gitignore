@@ -1,8 +1,11 @@
 out/
-node_modules/
 .vscode-test/
 *.vsix
 .DS_Store
+
+# Node
+/node_modules
+.npmrc
 
 # Weave Dev
 /dev-example

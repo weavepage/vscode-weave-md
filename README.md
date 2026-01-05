@@ -69,7 +69,7 @@ With export hint: [reference](node:intro?export=appendix)
 - `footnote` - Numbered footnote at bottom
 - `sidenote` - Numbered note in margin
 - `margin` - Unnumbered margin note
-- `page` - Full page reference
+- `panel` - Full panel reference
 
 ## Commands
 

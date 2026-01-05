@@ -5,7 +5,7 @@ import { DisplayType, ExportHint } from '@weave-md/core';
 /**
  * Valid display modes
  */
-export const VALID_DISPLAY_MODES: DisplayType[] = ['footnote', 'sidenote', 'margin', 'overlay', 'inline', 'stretch', 'page'];
+export const VALID_DISPLAY_MODES: DisplayType[] = ['footnote', 'sidenote', 'margin', 'overlay', 'inline', 'stretch', 'panel'];
 
 /**
  * Valid export hints
