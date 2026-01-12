@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type MarkdownIt from 'markdown-it';
+import { config } from './config';
 import { getIndexStore, disposeIndexStore } from './validation/indexStore';
 import { LightweightValidator } from './validation/lightweightValidator';
 import { FullAstValidator } from './validation/fullAstValidator';
@@ -70,8 +71,7 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt: 
     // Return markdown-it extension
     return {
       extendMarkdownIt(md: MarkdownIt): MarkdownIt {
-        const config = vscode.workspace.getConfiguration('weave');
-        if (config.get('enablePreviewEnhancements', true)) {
+        if (config.get().enablePreviewEnhancements) {
           createWeavePlugin(md);
           createWeaveFormatPlugin(md);
         }
@@ -88,6 +88,7 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt: 
  * Extension deactivation
  */
 export function deactivate(): void {
+  config.dispose();
   disposeIndexStore();
 }
 
@@ -121,9 +122,7 @@ function registerValidationCommands(context: vscode.ExtensionContext): void {
  * Sets up file watchers for automatic validation
  */
 function setupFileWatchers(context: vscode.ExtensionContext): void {
-  const config = vscode.workspace.getConfiguration('weave');
-  const sectionsGlob = config.get<string>('sectionsGlob', 'sections/**/*.md');
-  const rootFile = config.get<string>('rootFile', 'main.md');
+  const { sectionsGlob, rootFile } = config.get();
 
   // Debounced validation for active document
   const debouncedValidate = debounce((document: vscode.TextDocument) => {
@@ -191,9 +190,7 @@ function setupFileWatchers(context: vscode.ExtensionContext): void {
 async function indexWorkspace(): Promise<void> {
   isIndexingWorkspace = true;
   try {
-    const config = vscode.workspace.getConfiguration('weave');
-    const sectionsGlob = config.get<string>('sectionsGlob', 'sections/**/*.md');
-    const rootFile = config.get<string>('rootFile', 'main.md');
+    const { sectionsGlob, rootFile } = config.get();
 
     const rootFiles = await vscode.workspace.findFiles(`**/${rootFile}`);
     const sectionFiles = await vscode.workspace.findFiles(`**/${sectionsGlob}`);

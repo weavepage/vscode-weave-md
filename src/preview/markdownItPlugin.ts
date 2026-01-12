@@ -13,6 +13,7 @@ import type Token from 'markdown-it/lib/token';
 import type Renderer from 'markdown-it/lib/renderer';
 import * as vscode from 'vscode';
 import { getIndexStore, Section } from '../validation/indexStore';
+import { config } from '../config';
 import { renderSectionBody as renderSectionBodyHtml } from './weaveRenderer';
 
 /**
@@ -30,13 +31,13 @@ export interface PreviewConfig {
  * Gets preview configuration from VS Code settings
  */
 export function getPreviewConfig(): PreviewConfig {
-  const config = vscode.workspace.getConfiguration('weave');
+  const cfg = config.get();
   return {
-    enablePreviewEnhancements: config.get('enablePreviewEnhancements', true),
-    maxPreviewDepth: config.get('maxPreviewDepth', 3),
-    maxExpandedCharsPerRef: config.get('maxExpandedCharsPerRef', 12000),
-    maxExpandedRefsPerDoc: config.get('maxExpandedRefsPerDoc', 50),
-    showPreviewLabels: config.get('showPreviewLabels', true)
+    enablePreviewEnhancements: cfg.enablePreviewEnhancements,
+    maxPreviewDepth: cfg.maxPreviewDepth,
+    maxExpandedCharsPerRef: cfg.maxExpandedCharsPerRef,
+    maxExpandedRefsPerDoc: cfg.maxExpandedRefsPerDoc,
+    showPreviewLabels: cfg.showPreviewLabels
   };
 }
 

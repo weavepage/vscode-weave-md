@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import { getIndexStore } from '../validation/indexStore';
+import { config } from '../config';
 import { parseNodeUrl } from '../validation/lightweightValidator';
 
 /**
@@ -43,8 +44,7 @@ export async function peekSectionCommand(): Promise<void> {
       return;
     }
 
-    const config = vscode.workspace.getConfiguration('weave');
-    const peekMaxChars = config.get<number>('peekMaxChars', 240);
+    const { peekMaxChars } = config.get();
 
     const items = sections.map(section => ({
       label: section.title || section.id,
@@ -75,8 +75,7 @@ export async function peekSectionCommand(): Promise<void> {
     return;
   }
 
-  const config = vscode.workspace.getConfiguration('weave');
-  const peekMaxChars = config.get<number>('peekMaxChars', 240);
+  const { peekMaxChars } = config.get();
 
   // Show in a hover-like information message with option to open
   const openAction = 'Open Section';

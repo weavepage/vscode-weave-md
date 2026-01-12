@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Section, ReferenceOccurrence, getIndexStore } from './indexStore';
 import { parseNodeUrl as coreParseNodeUrl, DisplayType, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
 import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
+import { config } from '../config';
 
 /**
  * Converts a @weave-md/core Diagnostic to VS Code Diagnostic
@@ -134,7 +135,12 @@ export function findNodeLinks(document: vscode.TextDocument): { links: Array<{ t
     });
   }
 
-  return { links, diagnostics: result.errors };
+  // Filter out export validation errors unless strict mode is enabled
+  const filteredDiagnostics = config.get().strictNodeParams
+    ? result.errors
+    : result.errors.filter(e => !e.message.includes('Invalid export value'));
+
+  return { links, diagnostics: filteredDiagnostics };
 }
 
 /**
@@ -237,15 +243,13 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
       rawHref: link.rawHref
     });
 
-    // Check for unknown parameters
-    if (link.parsed.unknownParams.size > 0) {
+    // Check for unknown parameters (only in strict mode)
+    if (link.parsed.unknownParams.size > 0 && config.get().strictNodeParams) {
       const unknownKeys = Array.from(link.parsed.unknownParams.keys()).join(', ');
-      const config = vscode.workspace.getConfiguration('weave');
-      const strict = config.get<boolean>('strictNodeParams', false);
       diagnostics.push(new vscode.Diagnostic(
         link.range,
         `Unknown node: URL parameters: ${unknownKeys}`,
-        strict ? vscode.DiagnosticSeverity.Warning : vscode.DiagnosticSeverity.Information
+        vscode.DiagnosticSeverity.Warning
       ));
     }
 
