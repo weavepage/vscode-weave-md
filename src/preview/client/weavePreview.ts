@@ -210,6 +210,81 @@ declare global {
   }
 
   /**
+   * Closes all open panels
+   */
+  function closeAllPanels(): void {
+    document.querySelectorAll<HTMLElement>('.weave-panel-content.visible').forEach(function(panel): void {
+      panel.classList.remove('visible');
+      // Update trigger state
+      const targetId = panel.getAttribute('data-for');
+      if (targetId) {
+        const trigger = document.querySelector<HTMLElement>('.weave-panel-trigger[data-target="' + targetId + '"]');
+        if (trigger) {
+          trigger.classList.remove('expanded');
+          trigger.setAttribute('aria-expanded', 'false');
+        }
+      }
+    });
+  }
+
+  /**
+   * Handles panel show/hide
+   */
+  function handlePanel(trigger: HTMLElement): void {
+    const targetId = trigger.getAttribute('data-target');
+    
+    // Find or create content element from template
+    let content = document.querySelector<HTMLElement>('.weave-panel-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for panel template
+      const template = document.querySelector<HTMLTemplateElement>('template.weave-panel-content-template[data-for="' + targetId + '"]');
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-panel-content';
+        content.setAttribute('data-for', targetId ?? '');
+        
+        // Extract title from trigger or use default
+        const title = trigger.getAttribute('title') || 'Panel';
+        const cleanTitle = title.replace(/^Open panel:\s*/, '');
+        
+        content.innerHTML = `
+          <div class="weave-panel-header">
+            <h3 class="weave-panel-title">${cleanTitle}</h3>
+            <button class="weave-panel-close" type="button" aria-label="Close panel">×</button>
+          </div>
+          <div class="weave-panel-body">${template.innerHTML}</div>
+        `;
+        document.body.appendChild(content);
+        
+        // Add close button handler
+        const closeBtn = content.querySelector('.weave-panel-close');
+        if (closeBtn) {
+          closeBtn.addEventListener('click', function(): void {
+            closeAllPanels();
+          });
+        }
+      }
+    }
+    
+    if (!content) {
+      return;
+    }
+
+    const isVisible = content.classList.contains('visible');
+    
+    // Close all other panels first
+    closeAllPanels();
+    
+    if (!isVisible) {
+      content.classList.add('visible');
+      if (trigger.classList.contains('weave-panel-trigger')) {
+        trigger.classList.add('expanded');
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    }
+  }
+
+  /**
    * Event delegation handler for clicks
    */
   function handleClick(event: MouseEvent): void {
@@ -273,6 +348,24 @@ declare global {
       return;
     }
 
+    // Handle panel anchor clicks (icon-only)
+    const panelAnchor = target.closest<HTMLElement>('.weave-panel-anchor');
+    if (panelAnchor) {
+      event.preventDefault();
+      event.stopPropagation();
+      handlePanel(panelAnchor);
+      return;
+    }
+
+    // Handle panel trigger clicks (text links)
+    const panelTrigger = target.closest<HTMLElement>('.weave-panel-trigger');
+    if (panelTrigger) {
+      event.preventDefault();
+      event.stopPropagation();
+      handlePanel(panelTrigger);
+      return;
+    }
+
     // Handle YouTube embed play button clicks - replace thumbnail with iframe
     const playButton = target.closest<HTMLElement>('.weave-embed-play-button');
     if (playButton) {
@@ -331,9 +424,10 @@ declare global {
       return;
     }
 
-    // Close overlays when clicking outside
-    if (!target.closest('.weave-overlay')) {
+    // Close overlays and panels when clicking outside
+    if (!target.closest('.weave-overlay') && !target.closest('.weave-panel-content')) {
       closeAllOverlays();
+      closeAllPanels();
     }
   }
 
@@ -366,11 +460,19 @@ declare global {
         }
         return;
       }
+
+      const panelTrigger = target.closest<HTMLElement>('.weave-panel-trigger, .weave-panel-anchor');
+      if (panelTrigger) {
+        event.preventDefault();
+        handlePanel(panelTrigger);
+        return;
+      }
     }
 
-    // Handle Escape to close overlays
+    // Handle Escape to close overlays and panels
     if (event.key === 'Escape') {
       closeAllOverlays();
+      closeAllPanels();
     }
   }
 

@@ -45,7 +45,7 @@ export function getPreviewConfig(): PreviewConfig {
  */
 interface ParsedNodeUrl {
   id: string;
-  display?: 'inline' | 'stretch' | 'overlay' | 'footnote' | 'sidenote' | 'margin';
+  display?: 'inline' | 'stretch' | 'overlay' | 'footnote' | 'sidenote' | 'margin' | 'panel';
   export?: string;
   unknownParams: Record<string, string>;
 }
@@ -74,7 +74,7 @@ function parseNodeUrl(href: string): ParsedNodeUrl | null {
     const params = new URLSearchParams(queryPart);
     for (const [key, value] of params) {
       if (key === 'display') {
-        const validDisplays = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin'];
+        const validDisplays = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
         if (validDisplays.includes(value)) {
           result.display = value as ParsedNodeUrl['display'];
         } else {
@@ -247,6 +247,9 @@ function renderNodeLink(
     case 'margin':
       return renderMarginNote(targetId, linkText, sectionTitle, content, filePath);
     
+    case 'panel':
+      return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
+    
     default:
       return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
   }
@@ -406,6 +409,22 @@ function renderSidenote(targetId: string, linkText: string, title: string, conte
 
 function renderMarginNote(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
   return `<span class="weave-expansion weave-margin" data-weave="1" data-target="${targetId}"><span class="weave-margin-text">${escapeHtml(linkText)}</span><span class="weave-margin-body"><span class="weave-header"><span class="weave-title">${escapeHtml(title)}</span><a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a></span>${content}</span></span>`;
+}
+
+function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
+  // Use template element to hold content without affecting layout
+  const contentTemplate = `<template class="weave-panel-content-template" data-for="${targetId}">${content}</template>`;
+  
+  // Get templates for any nested node links in the content
+  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
+  
+  if (isAnchorOnly(linkText)) {
+    // Anchor-only: show panel icon
+    return `<span class="weave-panel-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Open panel: ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}${nestedTemplates}`;
+  }
+  
+  // Text link with template content
+  return `<span class="weave-panel-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 /**

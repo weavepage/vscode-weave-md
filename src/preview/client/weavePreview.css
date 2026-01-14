@@ -604,3 +604,128 @@
 .weave-gallery figure + figure {
   margin-top: 0.5em;
 }
+
+/* Panel node styles */
+.weave-panel-anchor,
+.weave-panel-trigger {
+  display: inline;
+  color: var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+}
+
+.weave-panel-anchor:hover,
+.weave-panel-trigger:hover {
+  color: var(--vscode-textLink-activeForeground, #0052a3);
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-panel-anchor:focus,
+.weave-panel-trigger:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-panel-trigger.expanded {
+  background: var(--vscode-editor-selectionBackground, #e8f4ff);
+  border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
+}
+
+/* Panel content - hidden by default, shown as persistent sidebar */
+.weave-panel-content {
+  display: none !important;
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(400px, 80vw);
+  height: 100vh;
+  background: var(--vscode-editorWidget-background, #fafafa);
+  border-left: 1px solid var(--vscode-editorWidget-border, #c3c3c3);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.1);
+  z-index: 10000;
+  overflow-y: auto;
+  opacity: 0;
+  transform: translateX(100%);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.weave-panel-content.visible {
+  display: block !important;
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.weave-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  border-bottom: 1px solid var(--vscode-editorWidget-border, #c3c3c3);
+  background: var(--vscode-editor-background, #ffffff);
+}
+
+.weave-panel-title {
+  font-weight: 600;
+  font-size: 1.1em;
+  color: var(--vscode-foreground, #333);
+  margin: 0;
+  flex: 1;
+}
+
+.weave-panel-close {
+  background: none;
+  border: none;
+  font-size: 1.5em;
+  cursor: pointer;
+  color: var(--vscode-foreground, #666);
+  padding: 0.25rem;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+}
+
+.weave-panel-close:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+  color: var(--vscode-foreground, #333);
+}
+
+.weave-panel-close:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-panel-body {
+  padding: 1rem;
+  line-height: 1.5;
+  font-size: 0.95em;
+}
+
+.weave-panel-body p {
+  margin: 0 0 1rem 0;
+}
+
+.weave-panel-body p:last-child {
+  margin-bottom: 0;
+}
+
+/* Mobile fallback for panels */
+@media (max-width: 768px) {
+  .weave-panel-content {
+    width: 100vw;
+    height: 50vh;
+    top: auto;
+    bottom: 0;
+    border-left: none;
+    border-top: 1px solid var(--vscode-editorWidget-border, #c3c3c3);
+    box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(100%);
+  }
+
+  .weave-panel-content.visible {
+    transform: translateY(0);
+  }
+}
