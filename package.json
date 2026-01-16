@@ -117,7 +117,7 @@
         "weave.strictNodeParams": {
           "type": "boolean",
           "default": false,
-          "description": "Treat unknown node: URL parameters as warnings (true) instead of informational messages (false)"
+          "description": "Enable strict validation for node: URLs. When enabled: unknown parameters and unknown export values are validated as warnings."
         }
       }
     },
@@ -144,7 +144,9 @@
     "dev": "npm run compile && npm run test:weave-example"
   },
   "devDependencies": {
+    "@types/hast": "^3.0.4",
     "@types/markdown-it": "^13.0.7",
+    "@types/mdast": "^4.0.4",
     "@types/mocha": "^10.0.6",
     "@types/node": "^20.10.0",
     "@types/vscode": "^1.85.0",

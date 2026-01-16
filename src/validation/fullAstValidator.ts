@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { config } from '../config';
 import { parseWeaveDocument, WeaveParseError, WeaveDiagnosticsError, Diagnostic as WeaveDiagnostic } from '@weave-md/parse';
 import { validateWeaveBlocks, validateInlineSyntax, validateInlineMath, validateInlineSubstitute } from '@weave-md/validate';
 
@@ -74,9 +75,7 @@ export class FullAstValidator {
    * Validates all documents in the workspace
    */
   public async validateWorkspace(): Promise<void> {
-    const config = vscode.workspace.getConfiguration('weave');
-    const sectionsGlob = config.get<string>('sectionsGlob', 'sections/**/*.md');
-    const rootFile = config.get<string>('rootFile', 'main.md');
+    const { sectionsGlob, rootFile } = config.get();
 
     const rootFiles = await vscode.workspace.findFiles(rootFile);
     const sectionFiles = await vscode.workspace.findFiles(sectionsGlob);

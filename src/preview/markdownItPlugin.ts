@@ -32,13 +32,13 @@ export interface PreviewConfig {
  * Gets preview configuration from VS Code settings
  */
 export function getPreviewConfig(): PreviewConfig {
-  const config = vscode.workspace.getConfiguration('weave');
+  const cfg = config.get();
   return {
-    enablePreviewEnhancements: config.get('enablePreviewEnhancements', true),
-    maxPreviewDepth: config.get('maxPreviewDepth', 3),
-    maxExpandedCharsPerRef: config.get('maxExpandedCharsPerRef', 12000),
-    maxExpandedRefsPerDoc: config.get('maxExpandedRefsPerDoc', 50),
-    showPreviewLabels: config.get('showPreviewLabels', true)
+    enablePreviewEnhancements: cfg.enablePreviewEnhancements,
+    maxPreviewDepth: cfg.maxPreviewDepth,
+    maxExpandedCharsPerRef: cfg.maxExpandedCharsPerRef,
+    maxExpandedRefsPerDoc: cfg.maxExpandedRefsPerDoc,
+    showPreviewLabels: cfg.showPreviewLabels
   };
 }
 
@@ -322,6 +322,9 @@ function renderNodeLink(
     case 'panel':
       return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
+    case 'panel':
+      return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
+    
     default:
       return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
   }
@@ -514,6 +517,22 @@ function renderMarginNote(targetId: string, linkText: string, title: string, con
       </span>
     </span>
   </span>`;
+}
+
+function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
+  // Use template element to hold content without affecting layout
+  const contentTemplate = `<template class="weave-panel-content-template" data-for="${targetId}">${content}</template>`;
+  
+  // Get templates for any nested node links in the content
+  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
+  
+  if (isAnchorOnly(linkText)) {
+    // Anchor-only: show panel icon
+    return `<span class="weave-panel-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Open panel: ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}${nestedTemplates}`;
+  }
+  
+  // Text link with template content
+  return `<span class="weave-panel-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
