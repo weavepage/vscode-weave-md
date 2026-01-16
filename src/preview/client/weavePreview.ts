@@ -26,6 +26,84 @@ declare global {
   }
   window.__weavePreviewInitialized = true;
 
+  // Sidenote configuration
+  const MIN_WIDTH_FOR_SIDENOTES = 900;
+  
+  // Track sidenote block elements created for narrow viewport
+  const sidenoteBlocks: Map<string, HTMLElement> = new Map();
+
+  /**
+   * Updates sidenote display mode based on viewport width.
+   * Wide viewport: sidenotes float in right margin (CSS handles this)
+   * Narrow viewport: sidenotes appear as blocks after their containing paragraph
+   */
+  function updateSidenoteMode(): void {
+    const isNarrow = window.innerWidth < MIN_WIDTH_FOR_SIDENOTES;
+    
+    if (isNarrow) {
+      // Collect all sidenotes grouped by their containing paragraph
+      const sidenotesByParagraph = new Map<Element, Array<{targetId: string, body: HTMLElement}>>();
+      
+      document.querySelectorAll<HTMLElement>('.weave-sidenote-container').forEach(container => {
+        const anchor = container.querySelector<HTMLElement>('.weave-sidenote-anchor');
+        const body = container.querySelector<HTMLElement>('.weave-sidenote-body');
+        if (!anchor || !body) return;
+        
+        const targetId = anchor.getAttribute('data-target');
+        if (!targetId) return;
+        
+        // Skip if block already exists
+        if (sidenoteBlocks.has(targetId)) return;
+        
+        // Find the containing paragraph (be specific - avoid generic divs)
+        const paragraph = container.closest('p, li, blockquote');
+        if (!paragraph || !paragraph.parentElement) return;
+        
+        // Group by paragraph
+        if (!sidenotesByParagraph.has(paragraph)) {
+          sidenotesByParagraph.set(paragraph, []);
+        }
+        sidenotesByParagraph.get(paragraph)!.push({targetId, body});
+      });
+      
+      // Insert sidenote blocks after each paragraph
+      sidenotesByParagraph.forEach((sidenotes, paragraph) => {
+        // Find insertion point - after paragraph or after last sidenote block for this paragraph
+        let insertAfter: Element = paragraph;
+        
+        // Check if there are already sidenote blocks after this paragraph
+        let nextSibling = paragraph.nextElementSibling;
+        while (nextSibling && nextSibling.classList.contains('weave-sidenote-block')) {
+          insertAfter = nextSibling;
+          nextSibling = nextSibling.nextElementSibling;
+        }
+        
+        // Insert each sidenote block
+        sidenotes.forEach(({targetId, body}) => {
+          const block = document.createElement('div');
+          block.className = 'weave-sidenote-block';
+          block.setAttribute('data-sidenote-for', targetId);
+          block.innerHTML = body.innerHTML;
+          
+          // Insert after the current insertion point
+          if (insertAfter.nextSibling) {
+            insertAfter.parentElement!.insertBefore(block, insertAfter.nextSibling);
+          } else {
+            insertAfter.parentElement!.appendChild(block);
+          }
+          insertAfter = block;
+          sidenoteBlocks.set(targetId, block);
+        });
+      });
+    } else {
+      // Remove block sidenotes - CSS will show the floating ones
+      sidenoteBlocks.forEach((block, targetId) => {
+        block.remove();
+        sidenoteBlocks.delete(targetId);
+      });
+    }
+  }
+
   /**
    * Handles expand/collapse for inline triggers (text links)
    */
@@ -83,6 +161,90 @@ declare global {
       if (template) {
         content = document.createElement('div');
         content.className = 'weave-inline-content';
+        content.setAttribute('data-for', targetId ?? '');
+        content.innerHTML = template.innerHTML;
+        // Insert after the anchor's parent paragraph
+        const paragraph = anchor.closest('p');
+        if (paragraph && paragraph.parentElement) {
+          paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+        } else if (anchor.parentElement) {
+          anchor.parentElement.appendChild(content);
+        }
+      }
+    }
+    
+    if (!content) {
+      return;
+    }
+
+    const isExpanded = anchor.classList.contains('expanded');
+
+    if (isExpanded) {
+      content.classList.remove('visible');
+      anchor.classList.remove('expanded');
+    } else {
+      content.classList.add('visible');
+      anchor.classList.add('expanded');
+    }
+  }
+
+  /**
+   * Handles expand/collapse for stretch triggers (text links with nesting support)
+   */
+  function handleStretchTrigger(trigger: HTMLElement): void {
+    const targetId = trigger.getAttribute('data-target');
+    
+    // Find or create content element from template
+    let content = document.querySelector<HTMLElement>('.weave-stretch-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for template and create content from it
+      const template = document.querySelector<HTMLTemplateElement>('template.weave-stretch-content-template[data-for="' + targetId + '"]');
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-stretch-content';
+        content.setAttribute('data-for', targetId ?? '');
+        content.innerHTML = template.innerHTML;
+        // Insert after the trigger's parent paragraph
+        const paragraph = trigger.closest('p');
+        if (paragraph && paragraph.parentElement) {
+          paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+        } else if (trigger.parentElement) {
+          trigger.parentElement.appendChild(content);
+        }
+      }
+    }
+    
+    if (!content) {
+      return;
+    }
+
+    const isExpanded = trigger.classList.contains('expanded');
+
+    if (isExpanded) {
+      content.classList.remove('visible');
+      trigger.classList.remove('expanded');
+      trigger.setAttribute('aria-expanded', 'false');
+    } else {
+      content.classList.add('visible');
+      trigger.classList.add('expanded');
+      trigger.setAttribute('aria-expanded', 'true');
+    }
+  }
+
+  /**
+   * Handles expand/collapse for stretch anchor icons
+   */
+  function handleStretchAnchor(anchor: HTMLElement): void {
+    const targetId = anchor.getAttribute('data-target');
+    
+    // Find or create content element from template
+    let content = document.querySelector<HTMLElement>('.weave-stretch-content[data-for="' + targetId + '"]');
+    if (!content) {
+      // Look for template and create content from it
+      const template = document.querySelector<HTMLTemplateElement>('template.weave-stretch-content-template[data-for="' + targetId + '"]');
+      if (template) {
+        content = document.createElement('div');
+        content.className = 'weave-stretch-content';
         content.setAttribute('data-for', targetId ?? '');
         content.innerHTML = template.innerHTML;
         // Insert after the anchor's parent paragraph
@@ -285,10 +447,130 @@ declare global {
   }
 
   /**
+   * Handles sidenote anchor clicks - scroll to and highlight margin note
+   */
+  function handleSidenoteClick(anchor: HTMLElement): void {
+    const targetId = anchor.getAttribute('data-target');
+    if (!targetId) return;
+    
+    // Find the corresponding sidenote body
+    const sidenoteBody = document.querySelector<HTMLElement>('.weave-sidenote-body[data-target="' + targetId + '"]');
+    if (!sidenoteBody) return;
+    
+    // Prevent default and stop propagation
+    event?.preventDefault();
+    event?.stopPropagation();
+    
+    // Remove any existing highlights
+    document.querySelectorAll<HTMLElement>('.weave-sidenote-body.weave-highlight').forEach(el => {
+      el.classList.remove('weave-highlight');
+    });
+    
+    // Add highlight class and scroll into view
+    sidenoteBody.classList.add('weave-highlight');
+    sidenoteBody.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Remove highlight after 2 seconds
+    setTimeout(function(): void {
+      sidenoteBody.classList.remove('weave-highlight');
+    }, 2000);
+  }
+
+  /**
+   * Handles margin note anchor clicks - scroll to and highlight margin note
+   */
+  function handleMarginNoteClick(anchor: HTMLElement): void {
+    const targetId = anchor.getAttribute('data-target');
+    if (!targetId) return;
+    
+    // Find the corresponding margin note body
+    const marginNoteBody = document.querySelector<HTMLElement>('.weave-margin-note-body[data-target="' + targetId + '"]');
+    if (!marginNoteBody) return;
+    
+    // Prevent default and stop propagation
+    event?.preventDefault();
+    event?.stopPropagation();
+    
+    // Remove any existing highlights
+    document.querySelectorAll<HTMLElement>('.weave-margin-note-body.weave-highlight').forEach(el => {
+      el.classList.remove('weave-highlight');
+    });
+    
+    // Add highlight class and scroll into view
+    marginNoteBody.classList.add('weave-highlight');
+    marginNoteBody.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Remove highlight after 2 seconds
+    setTimeout(function(): void {
+      marginNoteBody.classList.remove('weave-highlight');
+    }, 2000);
+  }
+
+  /**
+   * Handles sidenote/margin note body clicks - scroll to and highlight anchor
+   */
+  function handleNoteBodyClick(body: HTMLElement): void {
+    const targetId = body.getAttribute('data-target');
+    if (!targetId) return;
+    
+    // Find the corresponding anchor
+    let anchor: HTMLElement | null = null;
+    
+    // Try sidenote anchor first
+    anchor = document.querySelector<HTMLElement>('.weave-sidenote-anchor[data-target="' + targetId + '"]');
+    
+    // If not found, try margin note anchor
+    if (!anchor) {
+      anchor = document.querySelector<HTMLElement>('.weave-margin-note-anchor[data-target="' + targetId + '"]');
+    }
+    
+    if (!anchor) return;
+    
+    // Prevent default and stop propagation
+    event?.preventDefault();
+    event?.stopPropagation();
+    
+    // Remove any existing highlights
+    document.querySelectorAll<HTMLElement>('.weave-sidenote-anchor.weave-highlight, .weave-margin-note-anchor.weave-highlight').forEach(el => {
+      el.classList.remove('weave-highlight');
+    });
+    
+    // Add highlight class and scroll into view
+    anchor.classList.add('weave-highlight');
+    anchor.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    
+    // Remove highlight after 2 seconds
+    setTimeout(function(): void {
+      anchor.classList.remove('weave-highlight');
+    }, 2000);
+  }
+
+  /**
    * Event delegation handler for clicks
    */
   function handleClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
+
+    // Handle sidenote anchor clicks
+    const sidenoteAnchor = target.closest<HTMLElement>('.weave-sidenote-anchor');
+    if (sidenoteAnchor) {
+      handleSidenoteClick(sidenoteAnchor);
+      return;
+    }
+
+    // Handle margin note anchor clicks
+    const marginNoteAnchor = target.closest<HTMLElement>('.weave-margin-note-anchor');
+    if (marginNoteAnchor) {
+      handleMarginNoteClick(marginNoteAnchor);
+      return;
+    }
+
+    // Handle sidenote/margin note body clicks
+    const noteBody = target.closest<HTMLElement>('.weave-sidenote-body, .weave-margin-note-body');
+    if (noteBody) {
+      handleNoteBodyClick(noteBody);
+      return;
+    }
 
     // Handle inline trigger clicks (text links)
     const inlineTrigger = target.closest<HTMLElement>('.weave-inline-trigger');
@@ -303,6 +585,22 @@ declare global {
     if (inlineAnchor) {
       event.preventDefault();
       handleInlineAnchor(inlineAnchor);
+      return;
+    }
+
+    // Handle stretch trigger clicks (text links with nesting)
+    const stretchTrigger = target.closest<HTMLElement>('.weave-stretch-trigger');
+    if (stretchTrigger) {
+      event.preventDefault();
+      handleStretchTrigger(stretchTrigger);
+      return;
+    }
+
+    // Handle stretch anchor clicks (icon-only with nesting)
+    const stretchAnchor = target.closest<HTMLElement>('.weave-stretch-anchor');
+    if (stretchAnchor) {
+      event.preventDefault();
+      handleStretchAnchor(stretchAnchor);
       return;
     }
 
@@ -437,12 +735,44 @@ declare global {
   function handleKeydown(event: KeyboardEvent): void {
     const target = event.target as HTMLElement;
 
-    // Handle Enter/Space on triggers
+    // Handle Enter/Space on sidenote anchors
     if (event.key === 'Enter' || event.key === ' ') {
+      const sidenoteAnchor = target.closest<HTMLElement>('.weave-sidenote-anchor');
+      if (sidenoteAnchor) {
+        event.preventDefault();
+        handleSidenoteClick(sidenoteAnchor);
+        return;
+      }
+
+      // Handle Enter/Space on margin note anchors
+      const marginNoteAnchor = target.closest<HTMLElement>('.weave-margin-note-anchor');
+      if (marginNoteAnchor) {
+        event.preventDefault();
+        handleMarginNoteClick(marginNoteAnchor);
+        return;
+      }
+
+      // Handle Enter/Space on triggers
       const inlineTrigger = target.closest<HTMLElement>('.weave-inline-trigger');
       if (inlineTrigger) {
         event.preventDefault();
         handleInlineTrigger(inlineTrigger);
+        return;
+      }
+
+      // Handle Enter/Space on stretch triggers
+      const stretchTrigger = target.closest<HTMLElement>('.weave-stretch-trigger');
+      if (stretchTrigger) {
+        event.preventDefault();
+        handleStretchTrigger(stretchTrigger);
+        return;
+      }
+
+      // Handle Enter/Space on stretch anchors
+      const stretchAnchor = target.closest<HTMLElement>('.weave-stretch-anchor');
+      if (stretchAnchor) {
+        event.preventDefault();
+        handleStretchAnchor(stretchAnchor);
         return;
       }
 
@@ -480,8 +810,9 @@ declare global {
   document.addEventListener('click', handleClick, true);
   document.addEventListener('keydown', handleKeydown, true);
 
-  // Handle window resize - reposition visible overlays
+  // Handle window resize - reposition overlays and update sidenote mode
   window.addEventListener('resize', function(): void {
+    // Reposition overlays
     document.querySelectorAll<HTMLElement>('.weave-overlay').forEach(function(expansion): void {
       const content = expansion.querySelector<HTMLElement>('.weave-overlay-content.active');
       const trigger = expansion.querySelector<HTMLElement>('.weave-node-link');
@@ -489,6 +820,16 @@ declare global {
         positionOverlay(trigger, content);
       }
     });
+    
+    // Update sidenote display mode
+    updateSidenoteMode();
   });
+
+  // Initial sidenote mode setup
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', updateSidenoteMode);
+  } else {
+    updateSidenoteMode();
+  }
 
 })();

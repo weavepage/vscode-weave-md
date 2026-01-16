@@ -22,6 +22,7 @@ export interface ReferenceOccurrence {
   uri: vscode.Uri;
   range: vscode.Range;
   rawHref: string;
+  display?: string;
 }
 
 /**

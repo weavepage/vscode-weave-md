@@ -13,6 +13,7 @@ import type Token from 'markdown-it/lib/token';
 import type Renderer from 'markdown-it/lib/renderer';
 import * as vscode from 'vscode';
 import { getIndexStore, Section } from '../validation/indexStore';
+import { config } from '../config';
 import { renderSectionBody as renderSectionBodyHtml, renderWeaveContent } from './weaveRenderer';
 import { DisplayType } from '@weave-md/core';
 import { isValidDisplayType } from '../util/displayTypes';
@@ -517,22 +518,6 @@ function renderMarginNote(targetId: string, linkText: string, title: string, con
       </span>
     </span>
   </span>`;
-}
-
-function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
-  // Use template element to hold content without affecting layout
-  const contentTemplate = `<template class="weave-panel-content-template" data-for="${targetId}">${content}</template>`;
-  
-  // Get templates for any nested node links in the content
-  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
-  
-  if (isAnchorOnly(linkText)) {
-    // Anchor-only: show panel icon
-    return `<span class="weave-panel-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Open panel: ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}${nestedTemplates}`;
-  }
-  
-  // Text link with template content
-  return `<span class="weave-panel-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {

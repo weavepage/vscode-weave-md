@@ -3,6 +3,7 @@ import { Section, ReferenceOccurrence, getIndexStore } from './indexStore';
 import { parseNodeUrl as coreParseNodeUrl, DisplayType, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
 import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
 import { isValidDisplayType, getValidDisplayModesString } from '../util/displayTypes';
+import { config } from '../config';
 
 /**
  * Converts a @weave-md/core Diagnostic to VS Code Diagnostic

@@ -17,6 +17,7 @@ import type { Root as HastRoot, Element, Text } from 'hast';
 export interface RenderOptions {
   renderMath?: boolean;
   maxChars?: number;
+  stripNodeLinks?: boolean;  // Strip nested node links (for inline content)
 }
 
 /**
@@ -211,6 +212,7 @@ function processInlineMath(text: string, renderMath: boolean): string {
  */
 function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
   const renderMath = options.renderMath !== false;
+  const stripNodeLinks = options.stripNodeLinks === true;
   
   function visit(node: HastRoot | Element | Text): void {
     if (node.type === 'element') {
@@ -271,35 +273,30 @@ function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
         }
       }
       
-      // Handle node: links - convert to clickable triggers with templates
+      // Handle node: links
       if (element.tagName === 'a') {
         const href = element.properties?.href as string | undefined;
         if (href && href.startsWith('node:')) {
-          // Parse the node URL
-          const urlPart = href.slice(5); // Remove 'node:'
-          const [id, queryString] = urlPart.split('?');
-          let display = 'overlay'; // Default to overlay for nested links
-          if (queryString) {
-            const params = new URLSearchParams(queryString);
-            display = params.get('display') || 'overlay';
-          }
-          
           // Get link text from children
           const linkText = element.children
             .filter((c): c is Text => c.type === 'text')
             .map(c => c.value)
             .join('');
           
-          // Create trigger element based on display type
-          let replacement: string;
-          if (display === 'overlay') {
-            replacement = `<span class="weave-node-link" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>`;
-          } else if (display === 'inline') {
-            replacement = `<span class="weave-inline-trigger" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>`;
-          } else {
-            // Default to overlay for other display types in nested context
-            replacement = `<span class="weave-node-link" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>`;
+          if (stripNodeLinks) {
+            // For inline content: strip node links, just show the text
+            (element as unknown as { type: string; value: string }).type = 'raw';
+            (element as unknown as { type: string; value: string }).value = escapeHtml(linkText);
+            delete (element as unknown as { children?: unknown[] }).children;
+            delete (element as unknown as { tagName?: string }).tagName;
+            delete (element as unknown as { properties?: unknown }).properties;
+            return;
           }
+          
+          // For stretch content: render as overlay trigger (nesting allowed)
+          const urlPart = href.slice(5); // Remove 'node:'
+          const [id] = urlPart.split('?');
+          const replacement = `<span class="weave-node-link" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>`;
           
           (element as unknown as { type: string; value: string }).type = 'raw';
           (element as unknown as { type: string; value: string }).value = replacement;
@@ -337,7 +334,7 @@ function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
  * Transforms custom mdast nodes (weaveNodeLink, inlineMath) to HTML-compatible nodes
  * @weave-md/parse creates custom nodes that toHast doesn't handle natively
  */
-function transformMdastCustomNodes(tree: unknown, renderMath: boolean): void {
+function transformMdastCustomNodes(tree: unknown, renderMath: boolean, stripNodeLinks: boolean): void {
   function visit(node: unknown): void {
     if (!node || typeof node !== 'object') return;
     
@@ -377,29 +374,33 @@ function transformMdastCustomNodes(tree: unknown, renderMath: boolean): void {
     }
     
     if (n.type === 'weaveNodeLink') {
-      // weaveNodeLink has targetId and display properties directly
       const nodeLink = n as { type: string; targetId?: string; display?: string; children?: unknown[]; data?: Record<string, unknown> };
-      const id = nodeLink.targetId || '';
-      const display = nodeLink.display || 'overlay';
       const linkText = nodeLink.children?.map((c: unknown) => {
         const child = c as { type?: string; value?: string };
         return child.type === 'text' ? child.value || '' : '';
       }).join('') || '';
       
-      // Use data.hName and data.hProperties to tell toHast how to convert this node
-      // This is the proper way to handle custom mdast nodes
+      if (stripNodeLinks) {
+        // For inline content: strip node links, just show the text
+        n.type = 'html';
+        n.value = escapeHtml(linkText);
+        delete n.children;
+        delete n.data;
+        return;
+      }
+      
+      // For stretch content: render as overlay trigger (nesting allowed)
+      const id = nodeLink.targetId || '';
       nodeLink.data = {
         hName: 'span',
         hProperties: {
-          className: display === 'inline' ? 'weave-inline-trigger' : 'weave-node-link',
+          className: 'weave-node-link',
           'data-weave': '1',
           'data-target': id,
           'data-nested': '1',
           tabindex: '0',
           role: 'button',
-          ...(display === 'inline' 
-            ? { 'aria-expanded': 'false' } 
-            : { 'data-display': 'overlay' })
+          'data-display': 'overlay'
         }
       };
       
@@ -430,7 +431,8 @@ export function renderWeaveContent(markdown: string, options: RenderOptions = {}
     
     // Transform custom mdast nodes (weaveNodeLink, inlineMath) before converting to hast
     const renderMath = options.renderMath !== false;
-    transformMdastCustomNodes(tree, renderMath);
+    const stripNodeLinks = options.stripNodeLinks === true;
+    transformMdastCustomNodes(tree, renderMath, stripNodeLinks);
     
     // Convert mdast to hast (allowDangerousHtml needed for html nodes from inlineMath transform)
     const hast = toHast(tree as MdastRoot, { allowDangerousHtml: true }) as HastRoot;
