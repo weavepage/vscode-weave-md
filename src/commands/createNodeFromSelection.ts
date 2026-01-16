@@ -1,15 +1,32 @@
 import * as vscode from 'vscode';
 
 /**
- * Generates a random 6-character base32-like ID
+ * Validates that a node ID contains only alphanumeric characters and hyphens
  */
-function generateRandomId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
-  let id = '';
-  for (let i = 0; i < 6; i++) {
-    id += chars.charAt(Math.floor(Math.random() * chars.length));
+function validateNodeId(id: string): string | null {
+  if (!id || id.trim().length === 0) {
+    return 'Node ID cannot be empty';
   }
-  return id;
+  
+  // Remove leading/trailing whitespace for validation
+  const trimmedId = id.trim();
+  
+  // Check if ID contains only alphanumeric characters and hyphens
+  if (!/^[a-zA-Z0-9-]+$/.test(trimmedId)) {
+    return 'Node ID can only contain letters, numbers, and hyphens (-)';
+  }
+  
+  // Check if ID starts or ends with a hyphen
+  if (trimmedId.startsWith('-') || trimmedId.endsWith('-')) {
+    return 'Node ID cannot start or end with a hyphen';
+  }
+  
+  // Check for consecutive hyphens
+  if (trimmedId.includes('--')) {
+    return 'Node ID cannot contain consecutive hyphens';
+  }
+  
+  return null; // No validation error
 }
 
 /**
@@ -72,8 +89,20 @@ export async function createNodeFromSelectionCommand(): Promise<void> {
     return;
   }
 
-  // Generate ID
-  const id = generateRandomId();
+  // Prompt user for node ID
+  const nodeId = await vscode.window.showInputBox({
+    prompt: 'Enter a node ID',
+    placeHolder: 'my-node-id',
+    validateInput: (value) => validateNodeId(value)
+  });
+
+  // Guard: User cancelled the prompt
+  if (!nodeId) {
+    return;
+  }
+
+  // Use the validated and trimmed ID
+  const id = nodeId.trim();
 
   // Resolve target directory and file path
   const targetDir = vscode.Uri.joinPath(workspaceFolder.uri, nodeDirectory);
