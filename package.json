@@ -48,8 +48,29 @@
       {
         "command": "weave.validateWorkspace",
         "title": "Weave: Validate Workspace"
+      },
+      {
+        "command": "weave.createNodeFromSelection",
+        "title": "Weave: Create Node from Selection"
       }
     ],
+    "keybindings": [
+      {
+        "command": "weave.createNodeFromSelection",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n",
+        "when": "editorHasSelection && editorLangId == markdown"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "weave.createNodeFromSelection",
+          "when": "editorHasSelection && editorLangId == markdown",
+          "group": "weave"
+        }
+      ]
+    },
     "configuration": {
       "title": "Weave",
       "properties": {

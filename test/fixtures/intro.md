@@ -15,6 +15,8 @@ This tests [inline display](node:inline-basic?display=inline) with text.
 
 This tests [overlay display](node:overlay-basic?display=overlay) with text.
 
+This tests [panel display](node:panel-basic?display=panel) with text.
+
 ### Anchor-only References
 
 Footnote anchor only: [ ](node:fn-anchor?display=footnote)
@@ -22,6 +24,8 @@ Footnote anchor only: [ ](node:fn-anchor?display=footnote)
 Inline anchor only: [ ](node:inline-anchor?display=inline)
 
 Overlay anchor only: [ ](node:overlay-anchor?display=overlay)
+
+Panel anchor only: [ ](node:panel-anchor?display=panel)
 
 ---
 
@@ -44,6 +48,10 @@ Click to expand [inline with overlay](node:inline-with-overlay?display=inline).
 ### Overlay in Footnote
 
 This has a footnote that contains an overlay.[ ](node:fn-with-overlay?display=footnote)
+
+### Overlay in Panel
+
+Click to expand a [panel with an overlay](node:panel-with-overlay?display=panel).
 
 ---
 

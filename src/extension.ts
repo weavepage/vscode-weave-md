@@ -15,6 +15,7 @@ import { registerReferenceProvider } from './languageFeatures/referenceProvider'
 import { registerGotoDefinitionCommand } from './commands/gotoDefinition';
 import { registerPeekSectionCommand } from './commands/peekSection';
 import { registerShowBacklinksCommand } from './commands/showBacklinks';
+import { registerCreateNodeFromSelectionCommand } from './commands/createNodeFromSelection';
 import { debounce } from './util/debounce';
 
 let validator: LightweightValidator | undefined;
@@ -42,6 +43,7 @@ export function activate(context: vscode.ExtensionContext): { extendMarkdownIt: 
     registerGotoDefinitionCommand(context);
     registerPeekSectionCommand(context);
     registerShowBacklinksCommand(context);
+    registerCreateNodeFromSelectionCommand(context);
     registerValidationCommands(context);
     console.log('WeaveMD extension: providers and commands registered');
 
