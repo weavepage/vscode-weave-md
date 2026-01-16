@@ -1,16 +1,7 @@
 import * as vscode from 'vscode';
 import { getIndexStore } from './indexStore';
 import { DisplayType, ExportHint } from '@weave-md/core';
-
-/**
- * Valid display modes
- */
-export const VALID_DISPLAY_MODES: DisplayType[] = ['footnote', 'sidenote', 'margin', 'overlay', 'inline', 'stretch', 'panel'];
-
-/**
- * Valid export hints
- */
-export const VALID_EXPORT_HINTS: ExportHint[] = ['appendix', 'inline', 'omit'];
+import { VALID_DISPLAY_MODES, VALID_EXPORT_HINTS } from '../util/displayTypes';
 
 /**
  * Diagnostic codes for Weave validation errors

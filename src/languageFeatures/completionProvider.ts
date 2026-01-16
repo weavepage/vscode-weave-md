@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { getIndexStore } from '../validation/indexStore';
 import { isInFrontmatter } from '../validation/lightweightValidator';
+import { VALID_DISPLAY_MODES, VALID_EXPORT_HINTS } from '../util/displayTypes';
 
 /**
  * Completion provider for Weave documents
@@ -54,10 +55,9 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
     // Stage 3: Display value completion - must check before parameter completion
     const displayValueMatch = beforeCursor.match(/\]\(node:[^)]*[?&]display=([^&)\s]*)$/);
     if (displayValueMatch) {
-      const displayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
       const partial = displayValueMatch[1];
 
-      return displayValues
+      return VALID_DISPLAY_MODES
         .filter(v => v.startsWith(partial))
         .map(value => ({
           label: value,
@@ -71,10 +71,9 @@ export class WeaveCompletionProvider implements vscode.CompletionItemProvider {
     // Stage 4: Export value completion - must check before parameter completion
     const exportValueMatch = beforeCursor.match(/\]\(node:[^)]*[?&]export=([^&)\s]*)$/);
     if (exportValueMatch) {
-      const exportValues = ['appendix', 'inline', 'omit'];
       const partial = exportValueMatch[1];
 
-      return exportValues
+      return VALID_EXPORT_HINTS
         .filter(v => v.startsWith(partial))
         .map(value => ({
           label: value,
