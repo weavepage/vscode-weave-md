@@ -737,6 +737,112 @@ function processInlineMath(text: string): string {
 }
 
 /**
+ * Processes inline substitution syntax :sub[INITIAL]{REPLACEMENT} in text content
+ * Handles nested sub syntax in replacement content
+ */
+function processInlineSub(text: string): string {
+  let subIndex = 0;
+  
+  function parseSubAtPosition(startIndex: number): { match: string; initial: string; replacement: string; endIndex: number } | null {
+    // Check if we have :sub[ at this position
+    if (!text.startsWith(':sub[', startIndex)) {
+      return null;
+    }
+    
+    let pos = startIndex + 5; // Skip ':sub['
+    
+    // Parse initial content until ]
+    let initial = '';
+    let braceCount = 0;
+    while (pos < text.length) {
+      if (text[pos] === ']' && braceCount === 0) {
+        break;
+      } else if (text[pos] === '{') {
+        braceCount++;
+      } else if (text[pos] === '}') {
+        if (braceCount > 0) braceCount--;
+      }
+      initial += text[pos];
+      pos++;
+    }
+    
+    if (pos >= text.length || text[pos] !== ']') {
+      return null; // Malformed - no closing ]
+    }
+    
+    pos++; // Skip ]
+    
+    // Expect {
+    if (pos >= text.length || text[pos] !== '{') {
+      return null; // Malformed - no opening {
+    }
+    
+    pos++; // Skip {
+    
+    // Parse replacement content with nested sub support
+    let replacement = '';
+    braceCount = 1; // Start with 1 for the opening {
+    
+    while (pos < text.length && braceCount > 0) {
+      if (text[pos] === '{') {
+        braceCount++;
+      } else if (text[pos] === '}') {
+        braceCount--;
+      }
+      
+      if (braceCount > 0) {
+        replacement += text[pos];
+      }
+      pos++;
+    }
+    
+    if (braceCount !== 0) {
+      return null; // Malformed - unclosed braces
+    }
+    
+    const match = text.substring(startIndex, pos);
+    return { match, initial, replacement, endIndex: pos };
+  }
+  
+  // Process all sub instances from left to right
+  let result = '';
+  let pos = 0;
+  
+  while (pos < text.length) {
+    const parsed = parseSubAtPosition(pos);
+    
+    if (parsed) {
+      // Process the sub
+      const id = `weave-sub-${subIndex++}`;
+      
+      // Recursively process nested subs in replacement - use early filter
+      let processedReplacement = parsed.replacement;
+      if (/:sub\[/.test(parsed.replacement)) {
+        processedReplacement = processInlineSub(parsed.replacement);
+      }
+      
+      const escapedInitial = escapeHtml(parsed.initial);
+      // Don't escape processedReplacement as it already contains HTML from nested subs
+      const replacementContent = processedReplacement.includes('<span class="weave-sub') 
+        ? processedReplacement 
+        : escapeHtml(processedReplacement);
+      
+      result += `<span class="weave-sub weave-sub-inline" data-weave="1" data-sub-id="${id}" data-initial="${escapedInitial}" data-replacement="${escapeHtml(parsed.replacement)}">
+        <span class="weave-sub-content weave-sub-initial">${escapedInitial}</span>
+        <span class="weave-sub-content weave-sub-replacement" style="display: none;">${replacementContent}</span>
+      </span>`;
+      
+      pos = parsed.endIndex;
+    } else {
+      result += text[pos];
+      pos++;
+    }
+  }
+  
+  return result;
+}
+
+/**
  * Creates the Weave format block plugin for math/media/etc.
  * Handles fenced code blocks with special info strings and inline math.
  */
@@ -791,7 +897,7 @@ export function createWeaveFormatPlugin(md: MarkdownIt): void {
   // Handle inline math in text content
   md.renderer.rules.text = function(tokens: Token[], idx: number, options: MarkdownIt.Options, env: unknown, self: Renderer): string {
     const token = tokens[idx];
-    const content = token.content;
+    let content = token.content;
     
     if (token.attrGet('data-weave') === '1') {
       return defaultText(tokens, idx, options, env, self);
@@ -799,10 +905,15 @@ export function createWeaveFormatPlugin(md: MarkdownIt): void {
     
     // Process inline math syntax
     if (content.includes(':math[')) {
-      return processInlineMath(content);
+      content = processInlineMath(content);
     }
     
-    return defaultText(tokens, idx, options, env, self);
+    // Process inline substitution syntax - use quick regex check before expensive parsing
+    if (/:sub\[/.test(content)) {
+      content = processInlineSub(content);
+    }
+    
+    return content;
   };
 }
 
