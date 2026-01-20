@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { Section, ReferenceOccurrence, getIndexStore } from './indexStore';
 import { parseNodeUrl as coreParseNodeUrl, DisplayType, Diagnostic as WeaveDiagnostic } from '@weave-md/core';
 import { parseFrontmatter, extractNodeLinks } from '@weave-md/validate';
+import { isValidDisplayType, getValidDisplayModesString } from '../util/displayTypes';
 import { config } from '../config';
 
 /**
@@ -255,11 +256,11 @@ export function validateDocument(document: vscode.TextDocument): ValidationResul
 
     // Check for invalid display values
     if (link.parsed.display) {
-      const validDisplayValues = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
-      if (!validDisplayValues.includes(link.parsed.display)) {
+      // Use centralized display type validation from @weave-md/core
+      if (!isValidDisplayType(link.parsed.display)) {
         diagnostics.push(new vscode.Diagnostic(
           link.range,
-          `Invalid display value: "${link.parsed.display}". Valid values: ${validDisplayValues.join(', ')}`,
+          `Invalid display value: "${link.parsed.display}". Valid values: ${getValidDisplayModesString()}`,
           vscode.DiagnosticSeverity.Error
         ));
       }

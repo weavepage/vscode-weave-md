@@ -17,6 +17,7 @@ import type { Root as HastRoot, Element, Text } from 'hast';
 export interface RenderOptions {
   renderMath?: boolean;
   maxChars?: number;
+  stripNodeLinks?: boolean;
 }
 
 /**

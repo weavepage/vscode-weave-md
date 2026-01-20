@@ -118,6 +118,11 @@
           "type": "boolean",
           "default": false,
           "description": "Enable strict validation for node: URLs. When enabled: unknown parameters and unknown export values are validated as warnings."
+        },
+        "weave.sidenoteMinWidth": {
+          "type": "number",
+          "default": 800,
+          "description": "Minimum viewport width for sidenote mode. Below this width, sidenotes and margin notes will display inline."
         }
       }
     },

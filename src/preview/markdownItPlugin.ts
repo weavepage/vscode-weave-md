@@ -14,7 +14,9 @@ import type Renderer from 'markdown-it/lib/renderer';
 import * as vscode from 'vscode';
 import { getIndexStore, Section } from '../validation/indexStore';
 import { config } from '../config';
-import { renderSectionBody as renderSectionBodyHtml } from './weaveRenderer';
+import { renderSectionBody as renderSectionBodyHtml, renderWeaveContent } from './weaveRenderer';
+import { DisplayType } from '@weave-md/core';
+import { isValidDisplayType } from '../util/displayTypes';
 
 /**
  * Preview configuration from VS Code settings
@@ -25,6 +27,7 @@ export interface PreviewConfig {
   maxExpandedCharsPerRef: number;
   maxExpandedRefsPerDoc: number;
   showPreviewLabels: boolean;
+  sidenoteMinWidth: number;
 }
 
 /**
@@ -37,7 +40,8 @@ export function getPreviewConfig(): PreviewConfig {
     maxPreviewDepth: cfg.maxPreviewDepth,
     maxExpandedCharsPerRef: cfg.maxExpandedCharsPerRef,
     maxExpandedRefsPerDoc: cfg.maxExpandedRefsPerDoc,
-    showPreviewLabels: cfg.showPreviewLabels
+    showPreviewLabels: cfg.showPreviewLabels,
+    sidenoteMinWidth: cfg.sidenoteMinWidth
   };
 }
 
@@ -46,7 +50,7 @@ export function getPreviewConfig(): PreviewConfig {
  */
 interface ParsedNodeUrl {
   id: string;
-  display?: 'inline' | 'stretch' | 'overlay' | 'footnote' | 'sidenote' | 'margin' | 'panel';
+  display?: DisplayType;
   export?: string;
   unknownParams: Record<string, string>;
 }
@@ -75,9 +79,9 @@ function parseNodeUrl(href: string): ParsedNodeUrl | null {
     const params = new URLSearchParams(queryPart);
     for (const [key, value] of params) {
       if (key === 'display') {
-        const validDisplays = ['inline', 'stretch', 'overlay', 'footnote', 'sidenote', 'margin', 'panel'];
-        if (validDisplays.includes(value)) {
-          result.display = value as ParsedNodeUrl['display'];
+        // Use centralized display type validation
+        if (isValidDisplayType(value)) {
+          result.display = value as DisplayType;
         } else {
           result.unknownParams[key] = value;
         }
@@ -157,15 +161,17 @@ function createRenderContext(): RenderContext {
 
 /**
  * Renders section content for embedding using @weave-md/parse
+ * @param stripNodeLinks - If true, nested node links are stripped (for inline display)
  */
-function renderSectionBody(section: Section, depth: number, ctx: RenderContext): string {
+function renderSectionBody(section: Section, depth: number, ctx: RenderContext, stripNodeLinks: boolean = false): string {
   // Use fullMarkdown which includes frontmatter - renderer will show error if missing
   const fullDoc = section.fullMarkdown;
   
   // Use the Weave renderer for proper HTML output
   const html = renderSectionBodyHtml(fullDoc, {
     renderMath: true,
-    maxChars: ctx.config.maxExpandedCharsPerRef
+    maxChars: ctx.config.maxExpandedCharsPerRef,
+    stripNodeLinks
   });
   
   if (fullDoc.length > ctx.config.maxExpandedCharsPerRef) {
@@ -173,6 +179,66 @@ function renderSectionBody(section: Section, depth: number, ctx: RenderContext):
   }
   
   return html;
+}
+
+/**
+ * Renders basic markdown content (simple paragraphs, text formatting)
+ * Used for sidenotes and margin notes where full Weave parsing isn't needed
+ */
+function renderBasicMarkdown(content: string): string {
+  // Simple markdown to HTML conversion for basic content
+  // Handle paragraphs, bold, italic, code, etc.
+  let html = content;
+  
+  // Convert newlines to paragraphs
+  const paragraphs = html.split(/\n\s*\n/).filter(p => p.trim());
+  html = paragraphs.map(p => {
+    // Basic inline formatting
+    p = p.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    p = p.replace(/\*(.*?)\*/g, '<em>$1</em>');
+    p = p.replace(/`(.*?)`/g, '<code>$1</code>');
+    p = p.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2">$1</a>');
+    
+    return `<p>${p.trim()}</p>`;
+  }).join('');
+  
+  // Handle single line content (no paragraphs)
+  if (paragraphs.length === 1 && !content.includes('\n\n')) {
+    html = html.replace(/^<p>(.*?)<\/p>$/, '$1');
+  }
+  
+  return html;
+}
+
+/**
+ * Extracts content after YAML frontmatter for sidenote/margin note rendering
+ */
+function extractContentAfterFrontmatter(fullMarkdown: string): string {
+  const lines = fullMarkdown.split('\n');
+  let inFrontmatter = false;
+  let frontmatterEndIndex = -1;
+  
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim();
+    
+    if (i === 0 && line === '---') {
+      inFrontmatter = true;
+      continue;
+    }
+    
+    if (inFrontmatter && line === '---') {
+      frontmatterEndIndex = i;
+      break;
+    }
+  }
+  
+  if (frontmatterEndIndex >= 0) {
+    // Return content after frontmatter, trimmed
+    return lines.slice(frontmatterEndIndex + 1).join('\n').trim();
+  }
+  
+  // No frontmatter found, return entire document
+  return fullMarkdown.trim();
 }
 
 /**
@@ -224,7 +290,9 @@ function renderNodeLink(
   ctx.expandedRefs++;
   ctx.expandedIds.add(parsed.id);
   
-  const content = renderSectionBody(section, depth + 1, ctx);
+  // Inline nodes strip nested node links; stretch nodes allow nesting
+  const stripNodeLinks = display === 'inline';
+  const content = renderSectionBody(section, depth + 1, ctx, stripNodeLinks);
   
   ctx.expandedIds.delete(parsed.id);
   
@@ -233,7 +301,7 @@ function renderNodeLink(
       return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
     case 'stretch':
-      return renderStretchExpansion(targetId, linkText, sectionTitle, content, filePath);
+      return renderStretchExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
     case 'overlay':
       return renderOverlayExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
@@ -243,10 +311,16 @@ function renderNodeLink(
     
     case 'sidenote':
       ctx.sidenoteCount++;
-      return renderSidenote(targetId, linkText, sectionTitle, content, filePath, ctx.sidenoteCount);
+      const sidenoteContent = extractContentAfterFrontmatter(section.fullMarkdown);
+      // Use basic markdown rendering for sidenote content to avoid Weave parser requirements
+      const sidenoteHtml = renderBasicMarkdown(sidenoteContent);
+      return renderSidenote(targetId, linkText, sectionTitle, sidenoteHtml, filePath, ctx.sidenoteCount);
     
     case 'margin':
-      return renderMarginNote(targetId, linkText, sectionTitle, content, filePath);
+      const marginContent = extractContentAfterFrontmatter(section.fullMarkdown);
+      // Use basic markdown rendering for margin note content to avoid Weave parser requirements
+      const marginHtml = renderBasicMarkdown(marginContent);
+      return renderMarginNote(targetId, linkText, sectionTitle, marginHtml, filePath);
     
     case 'panel':
       return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
@@ -322,11 +396,19 @@ function renderInlineExpansion(targetId: string, linkText: string, title: string
   return `<span class="weave-inline-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
-function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  const trigger = isAnchorOnly(linkText) 
-    ? `<span class="weave-inline-anchor" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>`
-    : `<span class="weave-inline-trigger" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>`;
-  return `<div class="weave-expansion weave-stretch" data-weave="1" data-target="${targetId}">${trigger}<div class="weave-inline-content" hidden>${content}</div></div>`;
+function renderStretchExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
+  // Use template element to hold content without affecting layout
+  const contentTemplate = `<template class="weave-stretch-content-template" data-for="${targetId}">${content}</template>`;
+  
+  // Get templates for any nested node links in the content (stretch allows nesting)
+  const nestedTemplates = getNestedLinkTemplates(content, depth + 1, ctx);
+  
+  if (isAnchorOnly(linkText)) {
+    // Anchor-only: show plus/minus icon
+    return `<span class="weave-stretch-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" title="Expand ${escapeHtml(title)}">${ICON_PLUS}${ICON_MINUS}</span>${contentTemplate}${nestedTemplates}`;
+  }
+  // Text link with template content
+  return `<span class="weave-stretch-trigger" data-weave="1" data-target="${targetId}" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
 function renderOverlayExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
@@ -405,11 +487,37 @@ function renderFootnotesSection(ctx: RenderContext): string {
 }
 
 function renderSidenote(targetId: string, linkText: string, title: string, content: string, filePath: string, num: number): string {
-  return `<span class="weave-expansion weave-sidenote" data-weave="1" data-target="${targetId}"><span class="weave-sn-text">${escapeHtml(linkText)}</span><sup class="weave-sn-ref">${num}</sup><span class="weave-sn-body"><span class="weave-sn-num">${num}.</span><span class="weave-header"><span class="weave-title">${escapeHtml(title)}</span><a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a></span>${content}</span></span>`;
+  return `<span class="weave-sidenote-container" data-weave="1">
+    <span class="weave-sidenote-anchor" data-target="${targetId}" tabindex="0" role="button">
+      ${escapeHtml(linkText)}<sup class="weave-sidenote-number">[${num}]</sup>
+    </span>
+    <span class="weave-sidenote-body" data-target="${targetId}">
+      <span class="weave-sidenote-content">
+        <span class="weave-header">
+          <span class="weave-sidenote-number">${num}.</span>
+          <span class="weave-title">${escapeHtml(title)}</span>
+          <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
+        </span>
+        ${content}
+      </span>
+    </span>
+  </span>`;
 }
 
 function renderMarginNote(targetId: string, linkText: string, title: string, content: string, filePath: string): string {
-  return `<span class="weave-expansion weave-margin" data-weave="1" data-target="${targetId}"><span class="weave-margin-text">${escapeHtml(linkText)}</span><span class="weave-margin-body"><span class="weave-header"><span class="weave-title">${escapeHtml(title)}</span><a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a></span>${content}</span></span>`;
+  const showAnchor = !isAnchorOnly(linkText);
+  return `<span class="weave-margin-note-container" data-weave="1">
+    ${showAnchor ? `<span class="weave-margin-note-anchor" data-target="${targetId}" tabindex="0" role="button">${escapeHtml(linkText)}</span>` : ''}
+    <span class="weave-margin-note-body" data-target="${targetId}">
+      <span class="weave-margin-note-content">
+        <span class="weave-header">
+          <span class="weave-title">${escapeHtml(title)}</span>
+          <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
+        </span>
+        ${content}
+      </span>
+    </span>
+  </span>`;
 }
 
 function renderPanelExpansion(targetId: string, linkText: string, title: string, content: string, filePath: string, ctx: RenderContext, depth: number): string {
@@ -448,6 +556,32 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     const env = state.env as WeaveEnv;
     if (!env.weaveContext) {
       env.weaveContext = createRenderContext();
+    }
+  });
+
+  // Add a core rule to inject configuration for client-side use
+  md.core.ruler.push('weave_config_inject', function(state) {
+    // Only inject config once at the beginning of the document
+    if (state.tokens.length > 0 && state.tokens[0].type === 'html_inline') {
+      const config = getPreviewConfig();
+      const configScript = `<script>window.__weaveConfig = ${JSON.stringify(config)};</script>`;
+      state.tokens.unshift({
+        type: 'html_inline',
+        content: configScript,
+        level: 0,
+        children: undefined,
+        markup: '',
+        map: undefined,
+        meta: undefined,
+        nesting: 0,
+        tag: '',
+        attrIndex: -1,
+        attrs: undefined,
+        block: false,
+        hidden: false,
+        info: '',
+        contentLoc: { start: { line: 0, column: 0 }, end: { line: 0, column: 0 } }
+      } as any);
     }
   });
   

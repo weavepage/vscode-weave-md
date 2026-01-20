@@ -17,6 +17,10 @@ This tests [overlay display](node:overlay-basic?display=overlay) with text.
 
 This tests [panel display](node:panel-basic?display=panel) with text.
 
+This tests [sidenote display](node:sidenote-basic?display=sidenote) with text.
+
+This tests [margin note display](node:margin-basic?display=margin) with text.
+
 ### Anchor-only References
 
 Footnote anchor only: [ ](node:fn-anchor?display=footnote)
@@ -41,9 +45,9 @@ Second reference to same footnote.[ ](node:fn-shared?display=footnote)
 
 ## Nested References
 
-### Overlay in Inline
+### Overlay in Stretch
 
-Click to expand [inline with overlay](node:inline-with-overlay?display=inline).
+Click to expand [inline with overlay](node:inline-with-overlay?display=stretch).
 
 ### Overlay in Footnote
 

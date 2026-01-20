@@ -8,6 +8,12 @@
  * - Layout must degrade gracefully on narrow or constrained preview widths
  */
 
+/* Document layout when sidenotes are present - constrain main content to make room for margin
+   Uses .weave-has-sidenotes class added by JavaScript for reliable detection */
+body.weave-has-sidenotes {
+  margin-right: 220px;
+}
+
 /* Base expansion container */
 .weave-expansion {
   display: inline;
@@ -26,33 +32,39 @@
 }
 
 .weave-overlay-anchor,
-.weave-inline-anchor {
+.weave-inline-anchor,
+.weave-stretch-anchor {
   display: inline;
   color: var(--vscode-textLink-foreground, #0066cc);
   cursor: pointer;
 }
 
 .weave-overlay-anchor:hover,
-.weave-inline-anchor:hover {
+.weave-inline-anchor:hover,
+.weave-stretch-anchor:hover {
   color: var(--vscode-textLink-activeForeground, #0052a3);
 }
 
 .weave-overlay-anchor:focus,
-.weave-inline-anchor:focus {
+.weave-inline-anchor:focus,
+.weave-stretch-anchor:focus {
   outline: 1px solid var(--vscode-focusBorder, #007acc);
   outline-offset: 1px;
 }
 
-/* Plus/minus toggle for inline anchors */
-.weave-inline-anchor .weave-icon-minus {
+/* Plus/minus toggle for inline and stretch anchors */
+.weave-inline-anchor .weave-icon-minus,
+.weave-stretch-anchor .weave-icon-minus {
   display: none;
 }
 
-.weave-inline-anchor.expanded .weave-icon-plus {
+.weave-inline-anchor.expanded .weave-icon-plus,
+.weave-stretch-anchor.expanded .weave-icon-plus {
   display: none;
 }
 
-.weave-inline-anchor.expanded .weave-icon-minus {
+.weave-inline-anchor.expanded .weave-icon-minus,
+.weave-stretch-anchor.expanded .weave-icon-minus {
   display: inline;
 }
 
@@ -70,23 +82,27 @@
 }
 
 /* Inline trigger - clickable text link */
-.weave-inline-trigger {
+.weave-inline-trigger,
+.weave-stretch-trigger {
   color: var(--vscode-textLink-foreground, #0066cc);
   text-decoration: none;
   border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
   cursor: pointer;
 }
 
-.weave-inline-trigger:hover {
+.weave-inline-trigger:hover,
+.weave-stretch-trigger:hover {
   background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
 }
 
-.weave-inline-trigger:focus {
+.weave-inline-trigger:focus,
+.weave-stretch-trigger:focus {
   outline: 1px solid var(--vscode-focusBorder, #007acc);
   outline-offset: 1px;
 }
 
-.weave-inline-trigger.expanded {
+.weave-inline-trigger.expanded,
+.weave-stretch-trigger.expanded {
   background: var(--vscode-editor-selectionBackground, #e8f4ff);
   border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
 }
@@ -97,11 +113,13 @@
 }
 
 /* Inline expandable content - hidden by default */
-.weave-inline-content {
+.weave-inline-content,
+.weave-stretch-content {
   display: none !important;
 }
 
-.weave-inline-content.visible {
+.weave-inline-content.visible,
+.weave-stretch-content.visible {
   display: block !important;
   margin: 1rem 0;
   padding: 1rem;
@@ -110,8 +128,15 @@
   border-radius: 4px;
 }
 
-.weave-inline-content p:last-child {
+.weave-inline-content p:last-child,
+.weave-stretch-content p:last-child {
   margin-bottom: 0;
+}
+
+/* Stretch content supports nesting - add visual distinction for nested levels */
+.weave-stretch-content .weave-stretch-content.visible {
+  margin-left: 1rem;
+  border-left-color: var(--vscode-textLink-activeForeground, #0052a3);
 }
 
 /* Overlay content - hidden by default */
@@ -334,75 +359,201 @@
   100% { background-color: transparent; }
 }
 
-/* Sidenote mode */
-.weave-sidenote {
+/* Sidenote container - inline in text */
+.weave-sidenote-container {
   display: inline;
 }
 
-/* .weave-sn-text inherits normal text styling */
-
-.weave-sn-ref {
-  font-size: 0.85em;
-  vertical-align: super;
-  line-height: 0;
-  margin-left: 0.1em;
-  color: var(--vscode-textLink-foreground, #3794ff);
+/* Sidenote anchor - normal link text with superscript number */
+.weave-sidenote-anchor {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
 }
 
-.weave-sn-body {
-  display: block;
+/* Superscript number within sidenote anchor */
+.weave-sidenote-number {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+  color: var(--vscode-textLink-foreground, #0066cc);
+  margin-left: 0.1em;
+}
+
+.weave-sidenote-anchor:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-sidenote-anchor:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+/* Sidenote body - floats in right margin, stays in document flow */
+.weave-sidenote-body {
   float: right;
   clear: right;
   width: 200px;
-  margin: 0 -220px 0.5em 0.5em;
+  margin: 0 -220px 1em 1em;
+  padding: 0.5em;
+  font-size: 0.85em;
+  line-height: 1.4;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+  border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Sidenote number in header - displayed before title */
+.weave-header .weave-sidenote-number {
+  font-weight: 600;
+  color: var(--vscode-textLink-foreground, #3794ff);
+  margin-right: 0.25em;
+  flex-shrink: 0;
+}
+
+/* Narrow viewport fallback - toggleable inline sidenotes */
+@media (max-width: 899px) {
+  body.weave-has-sidenotes {
+    margin-right: 0;
+  }
+  
+  /* Sidenote body hidden by default on mobile */
+  .weave-sidenote-body {
+    float: none;
+    width: auto;
+    margin: 0.5em 0 0.5em 1em;
+    padding: 0.75em 1em;
+    display: none;
+    background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+    border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  
+  /* Show sidenote body when expanded */
+  .weave-sidenote-container.expanded .weave-sidenote-body {
+    display: block;
+  }
+  
+  /* Style anchor as clickable toggle on mobile */
+  .weave-sidenote-anchor {
+    cursor: pointer;
+  }
+  
+  /* Visual indicator that anchor is expanded */
+  .weave-sidenote-container.expanded .weave-sidenote-anchor {
+    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+  }
+}
+
+/* Margin note container - shared rendering pipeline */
+.weave-margin-note-container {
+  display: inline;
+}
+
+/* Margin note anchor - optional visible marker */
+.weave-margin-note-anchor {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+}
+
+.weave-margin-note-anchor:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-margin-note-anchor:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+/* Margin note body - floats in right margin, stays in document flow */
+.weave-margin-note-body {
+  float: right;
+  clear: right;
+  width: 180px;
+  margin: 0 -200px 1em 1em; /* Position in margin column */
   padding: 0.5em;
   font-size: 0.85em;
   background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
   border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
-}
-
-.weave-sn-num {
-  font-weight: 600;
-  color: var(--vscode-textLink-foreground, #3794ff);
-  margin-right: 0.25em;
-}
-
-/* Fallback for narrow widths - sidenotes become inline */
-@media (max-width: 600px) {
-  .weave-sn-body {
-    float: none;
-    width: auto;
-    margin: 0.5em 0;
-  }
-}
-
-/* Margin note mode */
-.weave-margin {
-  display: inline;
-}
-
-/* .weave-margin-text inherits normal text styling */
-
-.weave-margin-body {
-  display: block;
-  float: right;
-  clear: right;
-  width: 180px;
-  margin: 0 -200px 0.5em 0.5em;
-  padding: 0.5em;
-  font-size: 0.85em;
-  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
   border-radius: 3px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Fallback for narrow widths - margin notes become inline */
-@media (max-width: 600px) {
-  .weave-margin-body {
+/* Shared header styles */
+.weave-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+}
+
+.weave-title {
+  color: var(--vscode-foreground, #333);
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.weave-open-link {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  margin-left: 0.5em;
+  flex-shrink: 0;
+}
+
+.weave-open-link:hover {
+  text-decoration: underline;
+}
+
+/* Sidenote and margin note highlight animation */
+.weave-sidenote-body.weave-highlight,
+.weave-margin-note-body.weave-highlight,
+.weave-sidenote-anchor.weave-highlight,
+.weave-margin-note-anchor.weave-highlight {
+  background-color: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055);
+  transition: background-color 0.3s ease;
+}
+
+@keyframes weave-sidenote-highlight-fade {
+  0% { background-color: var(--vscode-editor-findMatchHighlightBackground, #ea5c0055); }
+  100% { background-color: transparent; }
+}
+
+/* Mobile fallback for margin notes - toggleable like sidenotes */
+@media (max-width: 900px) {
+  /* Margin note body hidden by default on mobile */
+  .weave-margin-note-body {
     float: none;
     width: auto;
-    margin: 0.5em 0;
-    border-left: 2px solid var(--vscode-textBlockQuote-border, rgba(127, 127, 127, 0.3));
-    border-radius: 0 3px 3px 0;
+    margin: 0.5em 0 0.5em 1em;
+    padding: 0.75em 1em;
+    display: none;
+    background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+    border-radius: 3px;
+    font-size: 0.9em;
+  }
+  
+  /* Show margin note body when expanded */
+  .weave-margin-note-container.expanded .weave-margin-note-body {
+    display: block;
+  }
+  
+  /* Style anchor as clickable toggle on mobile */
+  .weave-margin-note-anchor {
+    cursor: pointer;
+  }
+  
+  /* Visual indicator that anchor is expanded */
+  .weave-margin-note-container.expanded .weave-margin-note-anchor {
+    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
   }
 }
 
