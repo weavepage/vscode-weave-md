@@ -447,19 +447,29 @@ declare global {
   }
 
   /**
-   * Handles margin note anchor clicks - scroll to and highlight margin note
+   * Handles margin note anchor clicks - toggle on mobile, highlight on desktop
    */
   function handleMarginNoteClick(anchor: HTMLElement): void {
     const targetId = anchor.getAttribute('data-target');
     if (!targetId) return;
     
-    // Find the corresponding margin note body
-    const marginNoteBody = document.querySelector<HTMLElement>('.weave-margin-note-body[data-target="' + targetId + '"]');
-    if (!marginNoteBody) return;
-    
     // Prevent default and stop propagation
     event?.preventDefault();
     event?.stopPropagation();
+    
+    // Get the container
+    const container = anchor.closest<HTMLElement>('.weave-margin-note-container');
+    if (!container) return;
+    
+    // On mobile (< 900px), toggle visibility
+    if (window.innerWidth < MIN_WIDTH_FOR_SIDENOTES) {
+      container.classList.toggle('expanded');
+      return;
+    }
+    
+    // On desktop, scroll to and highlight the margin note
+    const marginNoteBody = document.querySelector<HTMLElement>('.weave-margin-note-body[data-target="' + targetId + '"]');
+    if (!marginNoteBody) return;
     
     // Remove any existing highlights
     document.querySelectorAll<HTMLElement>('.weave-margin-note-body.weave-highlight').forEach(el => {

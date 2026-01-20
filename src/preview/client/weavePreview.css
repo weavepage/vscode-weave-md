@@ -405,12 +405,12 @@ body.weave-has-sidenotes {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-/* Sidenote body number - displayed at start of sidenote content */
-.weave-sidenote-body .weave-sidenote-number {
+/* Sidenote number in header - displayed before title */
+.weave-header .weave-sidenote-number {
   font-weight: 600;
   color: var(--vscode-textLink-foreground, #3794ff);
   margin-right: 0.25em;
-  display: inline-block;
+  flex-shrink: 0;
 }
 
 /* Narrow viewport fallback - toggleable inline sidenotes */
@@ -470,17 +470,18 @@ body.weave-has-sidenotes {
   outline-offset: 1px;
 }
 
-/* Margin note body - floated to right margin, stacks vertically */
+/* Margin note body - floats in right margin, stays in document flow */
 .weave-margin-note-body {
   float: right;
   clear: right;
   width: 180px;
-  margin: 0 0 1em 1em; /* No negative margin - rely on document padding */
+  margin: 0 -200px 1em 1em; /* Position in margin column */
   padding: 0.5em;
   font-size: 0.85em;
   background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
   border-radius: 3px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 /* Shared header styles */
@@ -526,29 +527,33 @@ body.weave-has-sidenotes {
   100% { background-color: transparent; }
 }
 
-/* Mobile fallback for margin notes only (sidenotes handled above) */
+/* Mobile fallback for margin notes - toggleable like sidenotes */
 @media (max-width: 900px) {
+  /* Margin note body hidden by default on mobile */
   .weave-margin-note-body {
-    position: static;
-    left: auto;
-    top: auto;
-    width: auto;
-    margin: 0.5em 0;
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-    box-shadow: none;
-    display: block;
     float: none;
+    width: auto;
+    margin: 0.5em 0 0.5em 1em;
+    padding: 0.75em 1em;
+    display: none;
+    background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+    border-radius: 3px;
+    font-size: 0.9em;
   }
   
-  .weave-margin-note-container {
+  /* Show margin note body when expanded */
+  .weave-margin-note-container.expanded .weave-margin-note-body {
     display: block;
   }
   
+  /* Style anchor as clickable toggle on mobile */
   .weave-margin-note-anchor {
-    display: inline-block;
-    margin-right: 0.5em;
+    cursor: pointer;
+  }
+  
+  /* Visual indicator that anchor is expanded */
+  .weave-margin-note-container.expanded .weave-margin-note-anchor {
+    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
   }
 }
 

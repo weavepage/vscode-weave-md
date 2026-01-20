@@ -490,9 +490,9 @@ function renderSidenote(targetId: string, linkText: string, title: string, conte
       ${escapeHtml(linkText)}<sup class="weave-sidenote-number">[${num}]</sup>
     </span>
     <span class="weave-sidenote-body" data-target="${targetId}">
-      <span class="weave-sidenote-number">${num}.</span>
       <span class="weave-sidenote-content">
         <span class="weave-header">
+          <span class="weave-sidenote-number">${num}.</span>
           <span class="weave-title">${escapeHtml(title)}</span>
           <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
         </span>
