@@ -26,8 +26,11 @@ declare global {
   }
   window.__weavePreviewInitialized = true;
 
-  // Sidenote configuration
-  const MIN_WIDTH_FOR_SIDENOTES = 900; // Viewport width threshold for sidenote mode
+  // Get configuration from global variable or use defaults
+  const weaveConfig = (window as any).__weaveConfig || {
+    sidenoteMinWidth: 800
+  };
+  const MIN_WIDTH_FOR_SIDENOTES = weaveConfig.sidenoteMinWidth;
 
   /**
    * Gets all sidenote bodies

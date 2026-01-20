@@ -10,6 +10,7 @@ export interface WeaveConfig {
   maxExpandedRefsPerDoc: number;
   showPreviewLabels: boolean;
   strictNodeParams: boolean;
+  sidenoteMinWidth: number;
 }
 
 class ConfigurationManager {
@@ -37,6 +38,7 @@ class ConfigurationManager {
       maxExpandedRefsPerDoc: cfg.get('maxExpandedRefsPerDoc', 50),
       showPreviewLabels: cfg.get('showPreviewLabels', true),
       strictNodeParams: cfg.get('strictNodeParams', false),
+      sidenoteMinWidth: cfg.get('sidenoteMinWidth', 800),
     };
   }
 

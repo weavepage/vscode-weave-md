@@ -27,6 +27,7 @@ export interface PreviewConfig {
   maxExpandedCharsPerRef: number;
   maxExpandedRefsPerDoc: number;
   showPreviewLabels: boolean;
+  sidenoteMinWidth: number;
 }
 
 /**
@@ -39,7 +40,8 @@ export function getPreviewConfig(): PreviewConfig {
     maxPreviewDepth: cfg.maxPreviewDepth,
     maxExpandedCharsPerRef: cfg.maxExpandedCharsPerRef,
     maxExpandedRefsPerDoc: cfg.maxExpandedRefsPerDoc,
-    showPreviewLabels: cfg.showPreviewLabels
+    showPreviewLabels: cfg.showPreviewLabels,
+    sidenoteMinWidth: cfg.sidenoteMinWidth
   };
 }
 
@@ -554,6 +556,32 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     const env = state.env as WeaveEnv;
     if (!env.weaveContext) {
       env.weaveContext = createRenderContext();
+    }
+  });
+
+  // Add a core rule to inject configuration for client-side use
+  md.core.ruler.push('weave_config_inject', function(state) {
+    // Only inject config once at the beginning of the document
+    if (state.tokens.length > 0 && state.tokens[0].type === 'html_inline') {
+      const config = getPreviewConfig();
+      const configScript = `<script>window.__weaveConfig = ${JSON.stringify(config)};</script>`;
+      state.tokens.unshift({
+        type: 'html_inline',
+        content: configScript,
+        level: 0,
+        children: undefined,
+        markup: '',
+        map: undefined,
+        meta: undefined,
+        nesting: 0,
+        tag: '',
+        attrIndex: -1,
+        attrs: undefined,
+        block: false,
+        hidden: false,
+        info: '',
+        contentLoc: { start: { line: 0, column: 0 }, end: { line: 0, column: 0 } }
+      } as any);
     }
   });
   
