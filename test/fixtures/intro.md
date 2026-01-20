@@ -45,7 +45,7 @@ Second reference to same footnote.[ ](node:fn-shared?display=footnote)
 
 ## Nested References
 
-### Overlay in Inline
+### Overlay in Stretch
 
 Click to expand [inline with overlay](node:inline-with-overlay?display=stretch).
 
