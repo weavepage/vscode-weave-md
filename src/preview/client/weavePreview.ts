@@ -27,81 +27,41 @@ declare global {
   window.__weavePreviewInitialized = true;
 
   // Sidenote configuration
-  const MIN_WIDTH_FOR_SIDENOTES = 900;
-  
-  // Track sidenote block elements created for narrow viewport
-  const sidenoteBlocks: Map<string, HTMLElement> = new Map();
+  const MIN_WIDTH_FOR_SIDENOTES = 900; // Viewport width threshold for sidenote mode
 
   /**
-   * Updates sidenote display mode based on viewport width.
-   * Wide viewport: sidenotes float in right margin (CSS handles this)
-   * Narrow viewport: sidenotes appear as blocks after their containing paragraph
+   * Gets all sidenote bodies
+   */
+  function getSidenoteBodies(): HTMLElement[] {
+    return Array.from(document.querySelectorAll<HTMLElement>('.weave-sidenote-body'));
+  }
+
+  /**
+   * Updates sidenote mode based on viewport width.
+   * Sidenotes use CSS float positioning - they naturally flow with the document.
+   * This function just adds/removes the body class for margin adjustment.
    */
   function updateSidenoteMode(): void {
-    const isNarrow = window.innerWidth < MIN_WIDTH_FOR_SIDENOTES;
+    const bodies = getSidenoteBodies();
     
-    if (isNarrow) {
-      // Collect all sidenotes grouped by their containing paragraph
-      const sidenotesByParagraph = new Map<Element, Array<{targetId: string, body: HTMLElement}>>();
-      
-      document.querySelectorAll<HTMLElement>('.weave-sidenote-container').forEach(container => {
-        const anchor = container.querySelector<HTMLElement>('.weave-sidenote-anchor');
-        const body = container.querySelector<HTMLElement>('.weave-sidenote-body');
-        if (!anchor || !body) return;
-        
-        const targetId = anchor.getAttribute('data-target');
-        if (!targetId) return;
-        
-        // Skip if block already exists
-        if (sidenoteBlocks.has(targetId)) return;
-        
-        // Find the containing paragraph (be specific - avoid generic divs)
-        const paragraph = container.closest('p, li, blockquote');
-        if (!paragraph || !paragraph.parentElement) return;
-        
-        // Group by paragraph
-        if (!sidenotesByParagraph.has(paragraph)) {
-          sidenotesByParagraph.set(paragraph, []);
-        }
-        sidenotesByParagraph.get(paragraph)!.push({targetId, body});
-      });
-      
-      // Insert sidenote blocks after each paragraph
-      sidenotesByParagraph.forEach((sidenotes, paragraph) => {
-        // Find insertion point - after paragraph or after last sidenote block for this paragraph
-        let insertAfter: Element = paragraph;
-        
-        // Check if there are already sidenote blocks after this paragraph
-        let nextSibling = paragraph.nextElementSibling;
-        while (nextSibling && nextSibling.classList.contains('weave-sidenote-block')) {
-          insertAfter = nextSibling;
-          nextSibling = nextSibling.nextElementSibling;
-        }
-        
-        // Insert each sidenote block
-        sidenotes.forEach(({targetId, body}) => {
-          const block = document.createElement('div');
-          block.className = 'weave-sidenote-block';
-          block.setAttribute('data-sidenote-for', targetId);
-          block.innerHTML = body.innerHTML;
-          
-          // Insert after the current insertion point
-          if (insertAfter.nextSibling) {
-            insertAfter.parentElement!.insertBefore(block, insertAfter.nextSibling);
-          } else {
-            insertAfter.parentElement!.appendChild(block);
-          }
-          insertAfter = block;
-          sidenoteBlocks.set(targetId, block);
-        });
-      });
-    } else {
-      // Remove block sidenotes - CSS will show the floating ones
-      sidenoteBlocks.forEach((block, targetId) => {
-        block.remove();
-        sidenoteBlocks.delete(targetId);
-      });
+    if (bodies.length === 0) {
+      document.body.classList.remove('weave-has-sidenotes');
+      return;
     }
+
+    // Add class to body for margin adjustment on wide viewports
+    if (window.innerWidth >= MIN_WIDTH_FOR_SIDENOTES) {
+      document.body.classList.add('weave-has-sidenotes');
+    } else {
+      document.body.classList.remove('weave-has-sidenotes');
+    }
+  }
+
+  /**
+   * Handles viewport resize - switch between sidenote and inline modes
+   */
+  function handleResize(): void {
+    updateSidenoteMode();
   }
 
   /**
@@ -447,19 +407,29 @@ declare global {
   }
 
   /**
-   * Handles sidenote anchor clicks - scroll to and highlight margin note
+   * Handles sidenote anchor clicks - toggle on mobile, highlight on desktop
    */
   function handleSidenoteClick(anchor: HTMLElement): void {
     const targetId = anchor.getAttribute('data-target');
     if (!targetId) return;
     
-    // Find the corresponding sidenote body
-    const sidenoteBody = document.querySelector<HTMLElement>('.weave-sidenote-body[data-target="' + targetId + '"]');
-    if (!sidenoteBody) return;
-    
     // Prevent default and stop propagation
     event?.preventDefault();
     event?.stopPropagation();
+    
+    // Get the container
+    const container = anchor.closest<HTMLElement>('.weave-sidenote-container');
+    if (!container) return;
+    
+    // On mobile (< 900px), toggle visibility
+    if (window.innerWidth < MIN_WIDTH_FOR_SIDENOTES) {
+      container.classList.toggle('expanded');
+      return;
+    }
+    
+    // On desktop, scroll to and highlight the sidenote
+    const sidenoteBody = document.querySelector<HTMLElement>('.weave-sidenote-body[data-target="' + targetId + '"]');
+    if (!sidenoteBody) return;
     
     // Remove any existing highlights
     document.querySelectorAll<HTMLElement>('.weave-sidenote-body.weave-highlight').forEach(el => {
@@ -810,7 +780,7 @@ declare global {
   document.addEventListener('click', handleClick, true);
   document.addEventListener('keydown', handleKeydown, true);
 
-  // Handle window resize - reposition overlays and update sidenote mode
+  // Handle window resize - reposition overlays and sidenotes
   window.addEventListener('resize', function(): void {
     // Reposition overlays
     document.querySelectorAll<HTMLElement>('.weave-overlay').forEach(function(expansion): void {
@@ -821,14 +791,17 @@ declare global {
       }
     });
     
-    // Update sidenote display mode
-    updateSidenoteMode();
+    // Handle sidenote mode switching and repositioning
+    handleResize();
   });
 
-  // Initial sidenote mode setup
+  // Initial sidenote mode setup after DOM is ready
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', updateSidenoteMode);
+    document.addEventListener('DOMContentLoaded', function(): void {
+      updateSidenoteMode();
+    });
   } else {
+    // DOM already loaded
     updateSidenoteMode();
   }
 

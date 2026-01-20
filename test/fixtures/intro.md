@@ -17,7 +17,7 @@ This tests [overlay display](node:overlay-basic?display=overlay) with text.
 
 This tests [panel display](node:panel-basic?display=panel) with text.
 
-This tests [sidenote display](node:sidenote-basic?display=sidenote) with text. This tests [sidenote display](node:sidenote-basic?display=sidenote) with text.
+This tests [sidenote display](node:sidenote-basic?display=sidenote) with text.
 
 ### Anchor-only References
 

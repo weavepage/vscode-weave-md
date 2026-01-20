@@ -8,11 +8,10 @@
  * - Layout must degrade gracefully on narrow or constrained preview widths
  */
 
-/* Document layout when sidenotes are present - constrain main content to make room for margin */
-body:has(.weave-sidenote-body),
-body:has(.weave-margin-note-body) {
-  max-width: calc(100% - 220px);
-  padding-right: 20px;
+/* Document layout when sidenotes are present - constrain main content to make room for margin
+   Uses .weave-has-sidenotes class added by JavaScript for reliable detection */
+body.weave-has-sidenotes {
+  margin-right: 220px;
 }
 
 /* Base expansion container */
@@ -365,12 +364,21 @@ body:has(.weave-margin-note-body) {
   display: inline;
 }
 
-/* Sidenote anchor - styled like normal node links (not superscript) */
+/* Sidenote anchor - normal link text with superscript number */
 .weave-sidenote-anchor {
   color: var(--vscode-textLink-foreground, #0066cc);
   text-decoration: none;
   border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
   cursor: pointer;
+}
+
+/* Superscript number within sidenote anchor */
+.weave-sidenote-number {
+  font-size: 0.75em;
+  vertical-align: super;
+  line-height: 0;
+  color: var(--vscode-textLink-foreground, #0066cc);
+  margin-left: 0.1em;
 }
 
 .weave-sidenote-anchor:hover {
@@ -382,7 +390,7 @@ body:has(.weave-margin-note-body) {
   outline-offset: 1px;
 }
 
-/* Sidenote body - floats in right margin */
+/* Sidenote body - floats in right margin, stays in document flow */
 .weave-sidenote-body {
   float: right;
   clear: right;
@@ -397,54 +405,46 @@ body:has(.weave-margin-note-body) {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.weave-sidenote-number {
+/* Sidenote body number - displayed at start of sidenote content */
+.weave-sidenote-body .weave-sidenote-number {
   font-weight: 600;
   color: var(--vscode-textLink-foreground, #3794ff);
   margin-right: 0.25em;
+  display: inline-block;
 }
 
-/* Make room for sidenotes in the margin */
-body:has(.weave-sidenote-body) {
-  margin-right: 240px;
-}
-
-/* Narrow viewport fallback - display sidenotes inline below reference */
+/* Narrow viewport fallback - toggleable inline sidenotes */
 @media (max-width: 899px) {
-  body:has(.weave-sidenote-body) {
+  body.weave-has-sidenotes {
     margin-right: 0;
   }
   
-  /* Keep container inline so it doesn't break text flow */
-  .weave-sidenote-container {
-    display: inline;
-  }
-  
-  .weave-sidenote-anchor {
-    display: inline;
-  }
-  
-  /* Hide sidenote body inline - will be shown via JS after paragraph */
+  /* Sidenote body hidden by default on mobile */
   .weave-sidenote-body {
-    display: none;
-  }
-  
-  /* Sidenote rendered after paragraph by JS */
-  .weave-sidenote-block {
-    display: block;
+    float: none;
     width: auto;
-    margin: 0.5em 0 1em 0;
-    padding: 0.75em;
-    font-size: 0.85em;
-    line-height: 1.4;
+    margin: 0.5em 0 0.5em 1em;
+    padding: 0.75em 1em;
+    display: none;
     background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
-    border-left: 3px solid var(--vscode-textLink-foreground, #3794ff);
+    border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
     border-radius: 3px;
+    font-size: 0.9em;
   }
   
-  .weave-sidenote-block .weave-sidenote-number {
-    font-weight: 600;
-    color: var(--vscode-textLink-foreground, #3794ff);
-    margin-right: 0.25em;
+  /* Show sidenote body when expanded */
+  .weave-sidenote-container.expanded .weave-sidenote-body {
+    display: block;
+  }
+  
+  /* Style anchor as clickable toggle on mobile */
+  .weave-sidenote-anchor {
+    cursor: pointer;
+  }
+  
+  /* Visual indicator that anchor is expanded */
+  .weave-sidenote-container.expanded .weave-sidenote-anchor {
+    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
   }
 }
 

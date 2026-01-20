@@ -323,9 +323,6 @@ function renderNodeLink(
     case 'panel':
       return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
     
-    case 'panel':
-      return renderPanelExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
-    
     default:
       return renderInlineExpansion(targetId, linkText, sectionTitle, content, filePath, ctx, depth);
   }
@@ -488,9 +485,10 @@ function renderFootnotesSection(ctx: RenderContext): string {
 }
 
 function renderSidenote(targetId: string, linkText: string, title: string, content: string, filePath: string, num: number): string {
-  const anchorText = isAnchorOnly(linkText) ? `${num}` : linkText;
   return `<span class="weave-sidenote-container" data-weave="1">
-    <span class="weave-sidenote-anchor" data-target="${targetId}" tabindex="0" role="button">${escapeHtml(anchorText)}</span>
+    <span class="weave-sidenote-anchor" data-target="${targetId}" tabindex="0" role="button">
+      ${escapeHtml(linkText)}<sup class="weave-sidenote-number">[${num}]</sup>
+    </span>
     <span class="weave-sidenote-body" data-target="${targetId}">
       <span class="weave-sidenote-number">${num}.</span>
       <span class="weave-sidenote-content">
