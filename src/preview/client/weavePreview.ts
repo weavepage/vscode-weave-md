@@ -818,4 +818,48 @@ declare global {
     updateSidenoteMode();
   }
 
+  /**
+   * Handles inline substitution clicks - one-way activation
+   */
+  function handleSubClick(subElement: HTMLElement): void {
+    // Skip if already activated
+    if (subElement.classList.contains('weave-sub-activated')) {
+      return;
+    }
+
+    const initialContent = subElement.querySelector<HTMLElement>('.weave-sub-initial');
+    const replacementContent = subElement.querySelector<HTMLElement>('.weave-sub-replacement');
+    
+    if (!initialContent || !replacementContent) {
+      return;
+    }
+
+    // Prevent default and stop propagation
+    const event = window.event as Event;
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    // Perform the substitution
+    initialContent.style.display = 'none';
+    replacementContent.style.display = 'inline';
+    subElement.classList.add('weave-sub-activated');
+
+    // Process any nested :sub elements in the replacement content
+    const nestedSubs = replacementContent.querySelectorAll<HTMLElement>('.weave-sub');
+    nestedSubs.forEach(nestedSub => {
+      nestedSub.style.display = 'inline';
+    });
+  }
+
+  // Add event delegation for inline substitutions
+  document.addEventListener('click', function(event: Event): void {
+    const target = event.target as HTMLElement;
+    const subElement = target.closest<HTMLElement>('.weave-sub:not(.weave-sub-activated)');
+    if (subElement) {
+      handleSubClick(subElement);
+    }
+  });
+
 })();

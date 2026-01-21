@@ -21,6 +21,8 @@ This tests [sidenote display](node:sidenote-basic?display=sidenote) with text.
 
 This tests [margin note display](node:margin-basic?display=margin) with text.
 
+Testing substitution: :sub[INITIAL]{REPLACEMENT with :sub[sub]{more text}}
+
 ### Anchor-only References
 
 Footnote anchor only: [ ](node:fn-anchor?display=footnote)
