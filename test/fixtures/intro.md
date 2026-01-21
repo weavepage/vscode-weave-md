@@ -49,7 +49,7 @@ Second reference to same footnote.[ ](node:fn-shared?display=footnote)
 
 ### Overlay in Stretch
 
-Click to expand [inline with overlay](node:inline-with-overlay?display=stretch).
+Click to expand [stretch with overlay](node:inline-with-overlay?display=stretch).
 
 ### Overlay in Footnote
 
