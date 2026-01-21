@@ -1,4 +1,22 @@
 import * as vscode from 'vscode';
+import { VALID_DISPLAY_MODES } from '../util/displayTypes';
+import type { DisplayType } from '@weave-md/core';
+
+/**
+ * Returns a description for each display type
+ */
+function getDisplayTypeDescription(mode: DisplayType): string {
+  const descriptions: Record<DisplayType, string> = {
+    inline: 'Embeds content directly in the text flow',
+    stretch: 'Expands content to full width',
+    overlay: 'Shows content in a modal overlay',
+    footnote: 'Adds content as a numbered footnote',
+    sidenote: 'Displays content in the margin as a sidenote',
+    margin: 'Places content in the margin',
+    panel: 'Shows content in a collapsible panel'
+  };
+  return descriptions[mode] || '';
+}
 
 /**
  * Validates that a node ID contains only alphanumeric characters and hyphens
@@ -45,11 +63,14 @@ ${selectedText}
 /**
  * Creates the link text to replace the selection
  */
-function createLinkText(id: string, displayText: string, linkFormat: string, nodeDirectory: string): string {
+function createLinkText(id: string, displayText: string, linkFormat: string, nodeDirectory: string, displayType?: DisplayType): string {
   if (linkFormat === 'markdown') {
     return `[${displayText}](./${nodeDirectory}/${id}.md)`;
   }
-  // Default to weave format
+  // Default to weave format with optional display parameter
+  if (displayType) {
+    return `[${displayText}](node:${id}?display=${displayType})`;
+  }
   return `[${displayText}](node:${id})`;
 }
 
@@ -101,8 +122,44 @@ export async function createNodeFromSelectionCommand(): Promise<void> {
     return;
   }
 
+  // Prompt user for display type
+  const displayTypeItems: vscode.QuickPickItem[] = [
+    { label: '(none)', description: 'No display type - uses default rendering' },
+    ...VALID_DISPLAY_MODES.map(mode => ({
+      label: mode,
+      description: getDisplayTypeDescription(mode)
+    }))
+  ];
+
+  const selectedDisplayType = await vscode.window.showQuickPick(displayTypeItems, {
+    placeHolder: 'Select display type for the nodelink',
+    title: 'Display Type'
+  });
+
+  // Guard: User cancelled the prompt
+  if (!selectedDisplayType) {
+    return;
+  }
+
+  const displayType = selectedDisplayType.label === '(none)' ? undefined : selectedDisplayType.label as DisplayType;
+
   // Use the validated and trimmed ID
   const id = nodeId.trim();
+
+  // Prompt user for display text (the text shown in the link)
+  const displayText = await vscode.window.showInputBox({
+    prompt: 'Enter display text for the link (shown between [ ])',
+    placeHolder: id,
+    value: id
+  });
+
+  // Guard: User cancelled the prompt
+  if (displayText === undefined) {
+    return;
+  }
+
+  // Use the display text or fall back to ID if empty
+  const linkDisplayText = displayText.trim() || id;
 
   // Resolve target directory and file path
   const targetDir = vscode.Uri.joinPath(workspaceFolder.uri, nodeDirectory);
@@ -117,14 +174,14 @@ export async function createNodeFromSelectionCommand(): Promise<void> {
     // File doesn't exist, which is what we want
   }
 
-  // For now, use the ID as the title
+  // Use the ID as the title in frontmatter
   const title = id;
 
   // Create the node content
   const nodeContent = createNodeContent(id, title, selectedText.trim());
 
-  // Create the link text using the title as display text
-  const linkText = createLinkText(id, title, linkFormat, nodeDirectory);
+  // Create the link text using the custom display text
+  const linkText = createLinkText(id, linkDisplayText, linkFormat, nodeDirectory, displayType);
 
   let fileCreated = false;
 
