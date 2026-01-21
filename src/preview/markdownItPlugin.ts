@@ -422,6 +422,7 @@ function renderOverlayExpansion(targetId: string, linkText: string, title: strin
     // Anchor-only: show info icon
     return `<span class="weave-overlay-anchor" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay" title="View ${escapeHtml(title)}">${ICON_INFO}</span>${contentTemplate}${nestedTemplates}`;
   }
+  // Text link with template content
   return `<span class="weave-node-link" data-weave="1" data-target="${targetId}" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>${contentTemplate}${nestedTemplates}`;
 }
 
@@ -595,6 +596,7 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
     weavePendingLink?: {
       parsed: ParsedNodeUrl;
       startIdx: number;
+      tokens: Token[];  // Reference to current tokens array to detect stale pending links
     };
     weaveSkipUntil?: number;
   }
@@ -613,7 +615,8 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
         if (!env.weaveContext) {
           env.weaveContext = createRenderContext();
         }
-        env.weavePendingLink = { parsed, startIdx: idx };
+        // Store reference to current tokens array to detect stale pending links
+        env.weavePendingLink = { parsed, startIdx: idx, tokens };
         return '';
       }
     }
@@ -622,7 +625,12 @@ export function createWeavePlugin(md: MarkdownIt, _outputChannel?: vscode.Output
   };
 
   md.renderer.rules.text = function(tokens: Token[], idx: number, options: MarkdownIt.Options, env: WeaveEnv, self: Renderer): string {
-    if (env.weavePendingLink && env.weaveSkipUntil === undefined) {
+    // Only skip text tokens that are inside a pending node link (after link_open, before link_close)
+    // Also check that we're in the same tokens array to prevent stale pending links from affecting other paragraphs
+    if (env.weavePendingLink && 
+        env.weavePendingLink.tokens === tokens &&
+        env.weaveSkipUntil === undefined && 
+        idx > env.weavePendingLink.startIdx) {
       return '';
     }
     return defaultText(tokens, idx, options, env, self);
@@ -852,7 +860,8 @@ export function createWeaveFormatPlugin(md: MarkdownIt): void {
       return self.renderToken(tokens, idx, options);
     };
 
-  const defaultText = md.renderer.rules.text ||
+  // Capture the CURRENT text rule (which includes the node link skipping logic from createWeavePlugin)
+  const previousTextRule = md.renderer.rules.text ||
     function(tokens: Token[], idx: number) {
       return escapeHtml(tokens[idx].content);
     };
@@ -894,13 +903,20 @@ export function createWeaveFormatPlugin(md: MarkdownIt): void {
     }
   };
 
-  // Handle inline math in text content
+  // Handle inline math and :sub in text content
+  // This wraps the previous text rule (from createWeavePlugin) to preserve node link skipping logic
   md.renderer.rules.text = function(tokens: Token[], idx: number, options: MarkdownIt.Options, env: unknown, self: Renderer): string {
-    const token = tokens[idx];
-    let content = token.content;
+    // First, call the previous text rule which handles node link text skipping
+    let content = previousTextRule(tokens, idx, options, env, self);
     
+    // If the previous rule returned empty (skipped text inside node link), return empty
+    if (content === '') {
+      return '';
+    }
+    
+    const token = tokens[idx];
     if (token.attrGet('data-weave') === '1') {
-      return defaultText(tokens, idx, options, env, self);
+      return content;
     }
     
     // Process inline math syntax
