@@ -194,6 +194,12 @@ declare global {
       content.classList.add('visible');
       trigger.classList.add('expanded');
       trigger.setAttribute('aria-expanded', 'true');
+      
+      // Position arrow to point at the trigger
+      const triggerRect = trigger.getBoundingClientRect();
+      const contentRect = content.getBoundingClientRect();
+      const arrowLeft = (triggerRect.left + triggerRect.width / 2) - contentRect.left;
+      content.style.setProperty('--arrow-left', Math.max(20, Math.min(arrowLeft, contentRect.width - 20)) + 'px');
     }
   }
 
