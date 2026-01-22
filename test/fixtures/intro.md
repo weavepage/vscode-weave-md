@@ -59,6 +59,10 @@ This has a footnote that contains an overlay.[ ](node:fn-with-overlay?display=fo
 
 Click to expand a [panel with an overlay](node:panel-with-overlay?display=panel).
 
+### Recursive Stretch
+
+Click to expand [stretch with a stretch](node:stretch-recursive?display=stretch) inside.
+
 ---
 
 ## Formats in Different Contexts

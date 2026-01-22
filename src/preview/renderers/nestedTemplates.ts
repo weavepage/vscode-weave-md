@@ -11,13 +11,24 @@ import { renderSectionBody as renderSectionBodyHtml } from '../weaveRenderer';
  * Scans content for nested node links and renders templates for their content
  */
 export function getNestedLinkTemplates(content: string, depth: number, ctx: RenderContext): string {
-  const regex = /data-target="([^"]+)"\s+data-nested="1"/g;
+  // Match nested links - find spans with data-nested="1" attribute
+  const regex = /<span[^>]*data-nested="1"[^>]*>/g;
   const templates: string[] = [];
   const processedIds = new Set<string>();
   
   let match;
   while ((match = regex.exec(content)) !== null) {
-    const nestedId = match[1];
+    const spanTag = match[0];
+    
+    // Extract target ID
+    const targetMatch = spanTag.match(/data-target="([^"]+)"/);
+    if (!targetMatch) continue;
+    const nestedId = targetMatch[1];
+    
+    // Determine display type from class or data-display attribute
+    const isStretch = spanTag.includes('weave-stretch-trigger');
+    const displayMatch = spanTag.match(/data-display="([^"]*)"/);
+    const displayType = isStretch ? 'stretch' : (displayMatch?.[1] || 'overlay');
     
     if (processedIds.has(nestedId) || ctx.expandedIds.has(nestedId)) {
       continue;
@@ -38,9 +49,16 @@ export function getNestedLinkTemplates(content: string, depth: number, ctx: Rend
       renderMath: true,
       maxChars: ctx.config.maxExpandedCharsPerRef
     });
+    
+    // Recursively generate templates for nested links within this content
+    const deeperTemplates = getNestedLinkTemplates(nestedContent, depth + 1, ctx);
+    
     ctx.expandedIds.delete(nestedId);
     
-    templates.push(`<template class="weave-overlay-content-template" data-for="${nestedId}">${nestedContent}</template>`);
+    // Use correct template class based on display type
+    const templateClass = displayType === 'stretch' ? 'weave-stretch-content-template' : 'weave-overlay-content-template';
+    templates.push(`<template class="${templateClass}" data-for="${nestedId}">${nestedContent}</template>`);
+    templates.push(deeperTemplates);
   }
   
   return templates.join('');
