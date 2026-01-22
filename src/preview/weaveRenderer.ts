@@ -297,6 +297,8 @@ function transformHast(tree: HastRoot, options: RenderOptions): HastRoot {
             replacement = `<span class="weave-node-link" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>`;
           } else if (display === 'inline') {
             replacement = `<span class="weave-inline-trigger" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>`;
+          } else if (display === 'stretch') {
+            replacement = `<span class="weave-stretch-trigger" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" aria-expanded="false">${escapeHtml(linkText)}</span>`;
           } else {
             // Default to overlay for other display types in nested context
             replacement = `<span class="weave-node-link" data-weave="1" data-target="${escapeHtml(id)}" data-nested="1" tabindex="0" role="button" data-display="overlay">${escapeHtml(linkText)}</span>`;
@@ -387,20 +389,31 @@ function transformMdastCustomNodes(tree: unknown, renderMath: boolean): void {
         return child.type === 'text' ? child.value || '' : '';
       }).join('') || '';
       
+      // Determine class name based on display type
+      let className: string;
+      let extraProps: Record<string, string>;
+      if (display === 'inline') {
+        className = 'weave-inline-trigger';
+        extraProps = { 'aria-expanded': 'false' };
+      } else if (display === 'stretch') {
+        className = 'weave-stretch-trigger';
+        extraProps = { 'aria-expanded': 'false' };
+      } else {
+        className = 'weave-node-link';
+        extraProps = { 'data-display': 'overlay' };
+      }
+      
       // Use data.hName and data.hProperties to tell toHast how to convert this node
-      // This is the proper way to handle custom mdast nodes
       nodeLink.data = {
         hName: 'span',
         hProperties: {
-          className: display === 'inline' ? 'weave-inline-trigger' : 'weave-node-link',
+          className,
           'data-weave': '1',
           'data-target': id,
           'data-nested': '1',
           tabindex: '0',
           role: 'button',
-          ...(display === 'inline' 
-            ? { 'aria-expanded': 'false' } 
-            : { 'data-display': 'overlay' })
+          ...extraProps
         }
       };
       

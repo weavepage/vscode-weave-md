@@ -174,10 +174,13 @@ body.weave-has-sidenotes {
   margin-bottom: 0;
 }
 
-/* Stretch content supports nesting - add visual distinction for nested levels */
+/* Stretch content supports nesting - nested bubbles have slightly different background */
 .weave-stretch-content .weave-stretch-content.visible {
-  margin-left: 1rem;
-  border-left-color: var(--vscode-textLink-activeForeground, #0052a3);
+  background: var(--vscode-editor-inactiveSelectionBackground, #f0f4f8);
+}
+
+.weave-stretch-content .weave-stretch-content .weave-stretch-content.visible {
+  background: var(--vscode-textBlockQuote-background, #f8f9fa);
 }
 
 /* Overlay content - hidden by default */
