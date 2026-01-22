@@ -12,3 +12,7 @@ out/
 weave-example.html
 /weave-example_files
 weave-example.test.ts
+
+# Windsurf
+.windsurf
+.windsurf/*

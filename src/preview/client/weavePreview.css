@@ -82,26 +82,44 @@ body.weave-has-sidenotes {
 }
 
 /* Inline trigger - clickable text link */
-.weave-inline-trigger,
-.weave-stretch-trigger {
+.weave-inline-trigger {
   color: var(--vscode-textLink-foreground, #0066cc);
   text-decoration: none;
   border-bottom: 1px solid var(--vscode-textLink-foreground, #0066cc);
   cursor: pointer;
 }
 
-.weave-inline-trigger:hover,
+.weave-inline-trigger:hover {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
+}
+
+.weave-inline-trigger:focus {
+  outline: 1px solid var(--vscode-focusBorder, #007acc);
+  outline-offset: 1px;
+}
+
+.weave-inline-trigger.expanded {
+  background: var(--vscode-editor-selectionBackground, #e8f4ff);
+  border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
+}
+
+/* Stretch trigger - dotted underline when collapsed, solid when expanded */
+.weave-stretch-trigger {
+  color: var(--vscode-textLink-foreground, #0066cc);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--vscode-textLink-foreground, #0066cc);
+  cursor: pointer;
+}
+
 .weave-stretch-trigger:hover {
   background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
 }
 
-.weave-inline-trigger:focus,
 .weave-stretch-trigger:focus {
   outline: 1px solid var(--vscode-focusBorder, #007acc);
   outline-offset: 1px;
 }
 
-.weave-inline-trigger.expanded,
 .weave-stretch-trigger.expanded {
   background: var(--vscode-editor-selectionBackground, #e8f4ff);
   border-bottom: 2px solid var(--vscode-textLink-foreground, #0066cc);
@@ -118,14 +136,37 @@ body.weave-has-sidenotes {
   display: none !important;
 }
 
-.weave-inline-content.visible,
-.weave-stretch-content.visible {
+.weave-inline-content.visible {
   display: block !important;
   margin: 1rem 0;
   padding: 1rem;
   background: var(--vscode-textBlockQuote-background, #f8f9fa);
   border-left: 3px solid var(--vscode-textLink-foreground, #0066cc);
   border-radius: 4px;
+}
+
+.weave-stretch-content.visible {
+  display: block !important;
+  margin: 1rem 0;
+  padding: 1rem;
+  background: var(--vscode-textBlockQuote-background, #f8f9fa);
+  border: 1px solid var(--vscode-widget-border, #e0e0e0);
+  border-radius: 8px;
+  position: relative;
+}
+
+/* Arrow pointing to stretch source - position set dynamically via --arrow-left */
+.weave-stretch-content.visible::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: var(--arrow-left, 20px);
+  width: 14px;
+  height: 14px;
+  background: var(--vscode-textBlockQuote-background, #f8f9fa);
+  border-left: 1px solid var(--vscode-widget-border, #e0e0e0);
+  border-top: 1px solid var(--vscode-widget-border, #e0e0e0);
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .weave-inline-content p:last-child,
