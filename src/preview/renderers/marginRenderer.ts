@@ -7,6 +7,8 @@ import { escapeHtml, isAnchorOnly } from '../utils';
 
 /**
  * Renders margin note HTML
+ * Uses a template for mobile expansion (instantiated after paragraph by JS)
+ * and a float body for desktop margin display
  */
 export function renderMarginNote(
   targetId: string,
@@ -16,16 +18,24 @@ export function renderMarginNote(
   filePath: string
 ): string {
   const showAnchor = !isAnchorOnly(linkText);
-  return `<span class="weave-margin-note-container" data-weave="1">
-    ${showAnchor ? `<span class="weave-margin-note-anchor" data-target="${targetId}" tabindex="0" role="button">${escapeHtml(linkText)}</span>` : ''}
-    <span class="weave-margin-note-body" data-target="${targetId}">
+  
+  const bodyContent = `
       <span class="weave-margin-note-content">
         <span class="weave-header">
           <span class="weave-title">${escapeHtml(title)}</span>
           <a class="weave-open-link" href="${escapeHtml(filePath)}" title="Open section">↗</a>
         </span>
         ${content}
-      </span>
-    </span>
-  </span>`;
+      </span>`;
+  
+  // Template for mobile expansion (JS will instantiate after paragraph)
+  const mobileTemplate = `<template class="weave-margin-note-content-template" data-for="${targetId}">${bodyContent}</template>`;
+  
+  // Float body for desktop margin display
+  const desktopBody = `<span class="weave-margin-note-body" data-target="${targetId}">${bodyContent}</span>`;
+  
+  return `<span class="weave-margin-note-container" data-weave="1">
+    ${showAnchor ? `<span class="weave-margin-note-anchor" data-target="${targetId}" tabindex="0" role="button">${escapeHtml(linkText)}</span>` : ''}
+    ${desktopBody}
+  </span>${mobileTemplate}`;
 }

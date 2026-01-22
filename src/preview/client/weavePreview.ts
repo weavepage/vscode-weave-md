@@ -42,21 +42,24 @@ declare global {
   /**
    * Updates sidenote mode based on viewport width.
    * Sidenotes use CSS float positioning - they naturally flow with the document.
-   * This function just adds/removes the body class for margin adjustment.
+   * This function adds/removes body classes for margin adjustment and mobile mode.
    */
   function updateSidenoteMode(): void {
     const bodies = getSidenoteBodies();
     
     if (bodies.length === 0) {
       document.body.classList.remove('weave-has-sidenotes');
+      document.body.classList.remove('weave-sidenote-mobile');
       return;
     }
 
-    // Add class to body for margin adjustment on wide viewports
+    // Add/remove classes based on viewport width vs user setting
     if (window.innerWidth >= MIN_WIDTH_FOR_SIDENOTES) {
       document.body.classList.add('weave-has-sidenotes');
+      document.body.classList.remove('weave-sidenote-mobile');
     } else {
       document.body.classList.remove('weave-has-sidenotes');
+      document.body.classList.add('weave-sidenote-mobile');
     }
   }
 
@@ -424,9 +427,37 @@ declare global {
     const container = anchor.closest<HTMLElement>('.weave-sidenote-container');
     if (!container) return;
     
-    // On mobile (< 900px), toggle visibility
+    // On mobile (< 900px), toggle content from template (like inline display)
     if (window.innerWidth < MIN_WIDTH_FOR_SIDENOTES) {
-      container.classList.toggle('expanded');
+      // Find or create content element from template
+      let content = document.querySelector<HTMLElement>('.weave-sidenote-mobile-content[data-for="' + targetId + '"]');
+      if (!content) {
+        const template = document.querySelector<HTMLTemplateElement>('template.weave-sidenote-content-template[data-for="' + targetId + '"]');
+        if (template) {
+          content = document.createElement('div');
+          content.className = 'weave-sidenote-mobile-content weave-sidenote-body';
+          content.setAttribute('data-for', targetId);
+          content.innerHTML = template.innerHTML;
+          // Insert after the paragraph to avoid breaking text flow
+          const paragraph = container.closest('p');
+          if (paragraph && paragraph.parentElement) {
+            paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+          } else if (container.parentElement) {
+            container.parentElement.appendChild(content);
+          }
+        }
+      }
+      
+      if (!content) return;
+      
+      const isExpanded = container.classList.contains('expanded');
+      if (isExpanded) {
+        content.classList.remove('visible');
+        container.classList.remove('expanded');
+      } else {
+        content.classList.add('visible');
+        container.classList.add('expanded');
+      }
       return;
     }
     
@@ -464,9 +495,37 @@ declare global {
     const container = anchor.closest<HTMLElement>('.weave-margin-note-container');
     if (!container) return;
     
-    // On mobile (< 900px), toggle visibility
+    // On mobile (< 900px), toggle content from template (like inline display)
     if (window.innerWidth < MIN_WIDTH_FOR_SIDENOTES) {
-      container.classList.toggle('expanded');
+      // Find or create content element from template
+      let content = document.querySelector<HTMLElement>('.weave-margin-note-mobile-content[data-for="' + targetId + '"]');
+      if (!content) {
+        const template = document.querySelector<HTMLTemplateElement>('template.weave-margin-note-content-template[data-for="' + targetId + '"]');
+        if (template) {
+          content = document.createElement('div');
+          content.className = 'weave-margin-note-mobile-content weave-margin-note-body';
+          content.setAttribute('data-for', targetId);
+          content.innerHTML = template.innerHTML;
+          // Insert after the paragraph to avoid breaking text flow
+          const paragraph = container.closest('p');
+          if (paragraph && paragraph.parentElement) {
+            paragraph.parentElement.insertBefore(content, paragraph.nextSibling);
+          } else if (container.parentElement) {
+            container.parentElement.appendChild(content);
+          }
+        }
+      }
+      
+      if (!content) return;
+      
+      const isExpanded = container.classList.contains('expanded');
+      if (isExpanded) {
+        content.classList.remove('visible');
+        container.classList.remove('expanded');
+      } else {
+        content.classList.add('visible');
+        container.classList.add('expanded');
+      }
       return;
     }
     

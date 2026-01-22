@@ -413,39 +413,42 @@ body.weave-has-sidenotes {
   flex-shrink: 0;
 }
 
-/* Narrow viewport fallback - toggleable inline sidenotes */
-@media (max-width: 899px) {
-  body.weave-has-sidenotes {
-    margin-right: 0;
-  }
-  
-  /* Sidenote body hidden by default on mobile */
-  .weave-sidenote-body {
-    float: none;
-    width: auto;
-    margin: 0.5em 0 0.5em 1em;
-    padding: 0.75em 1em;
-    display: none;
-    background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
-    border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
-    border-radius: 3px;
-    font-size: 0.9em;
-  }
-  
-  /* Show sidenote body when expanded */
-  .weave-sidenote-container.expanded .weave-sidenote-body {
-    display: block;
-  }
-  
-  /* Style anchor as clickable toggle on mobile */
-  .weave-sidenote-anchor {
-    cursor: pointer;
-  }
-  
-  /* Visual indicator that anchor is expanded */
-  .weave-sidenote-container.expanded .weave-sidenote-anchor {
-    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
-  }
+/* Mobile content hidden on desktop - only shown on narrow viewports */
+.weave-sidenote-mobile-content,
+.weave-margin-note-mobile-content {
+  display: none !important;
+}
+
+/* Mobile mode for sidenotes - controlled by JS based on user's sidenoteMinWidth setting */
+body.weave-sidenote-mobile .weave-sidenote-container .weave-sidenote-body {
+  display: none !important;
+}
+
+/* Mobile content styling - hidden by default, shown when .visible */
+body.weave-sidenote-mobile .weave-sidenote-mobile-content {
+  float: none;
+  width: auto;
+  margin: 0.5em 0 0.5em 1em;
+  padding: 0.75em 1em;
+  display: none !important;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+body.weave-sidenote-mobile .weave-sidenote-mobile-content.visible {
+  display: block !important;
+}
+
+/* Style anchor as clickable toggle on mobile */
+body.weave-sidenote-mobile .weave-sidenote-anchor {
+  cursor: pointer;
+}
+
+/* Visual indicator that anchor is expanded */
+body.weave-sidenote-mobile .weave-sidenote-container.expanded .weave-sidenote-anchor {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
 }
 
 /* Margin note container - shared rendering pipeline */
@@ -527,34 +530,36 @@ body.weave-has-sidenotes {
   100% { background-color: transparent; }
 }
 
-/* Mobile fallback for margin notes - toggleable like sidenotes */
-@media (max-width: 900px) {
-  /* Margin note body hidden by default on mobile */
-  .weave-margin-note-body {
-    float: none;
-    width: auto;
-    margin: 0.5em 0 0.5em 1em;
-    padding: 0.75em 1em;
-    display: none;
-    background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
-    border-radius: 3px;
-    font-size: 0.9em;
-  }
-  
-  /* Show margin note body when expanded */
-  .weave-margin-note-container.expanded .weave-margin-note-body {
-    display: block;
-  }
-  
-  /* Style anchor as clickable toggle on mobile */
-  .weave-margin-note-anchor {
-    cursor: pointer;
-  }
-  
-  /* Visual indicator that anchor is expanded */
-  .weave-margin-note-container.expanded .weave-margin-note-anchor {
-    background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
-  }
+/* Mobile mode for margin notes - controlled by JS based on user's sidenoteMinWidth setting */
+body.weave-sidenote-mobile .weave-margin-note-container .weave-margin-note-body {
+  display: none !important;
+}
+
+/* Mobile content styling - hidden by default, shown when .visible */
+body.weave-sidenote-mobile .weave-margin-note-mobile-content {
+  float: none;
+  width: auto;
+  margin: 0.5em 0 0.5em 1em;
+  padding: 0.75em 1em;
+  display: none !important;
+  background-color: var(--vscode-textBlockQuote-background, rgba(127, 127, 127, 0.05));
+  border-left: 2px solid var(--vscode-textLink-foreground, #3794ff);
+  border-radius: 3px;
+  font-size: 0.9em;
+}
+
+body.weave-sidenote-mobile .weave-margin-note-mobile-content.visible {
+  display: block !important;
+}
+
+/* Style anchor as clickable toggle on mobile */
+body.weave-sidenote-mobile .weave-margin-note-anchor {
+  cursor: pointer;
+}
+
+/* Visual indicator that anchor is expanded */
+body.weave-sidenote-mobile .weave-margin-note-container.expanded .weave-margin-note-anchor {
+  background: var(--vscode-editor-hoverHighlightBackground, #f0f7ff);
 }
 
 /* Math blocks */
