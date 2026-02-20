@@ -5,6 +5,11 @@
   "version": "0.1.0",
   "publisher": "weavepage",
   "license": "MIT",
+  "icon": "images/icon.png",
+  "galleryBanner": {
+    "color": "#1e1e2e",
+    "theme": "dark"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/weavepage/vscode-weave-md"

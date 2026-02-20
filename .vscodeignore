@@ -1,0 +1,13 @@
+.vscode/**
+src/**
+test/**
+test-sections/**
+esbuild.js
+tsconfig.json
+weave-vscode-extension-plan-updated.md
+.gitignore
+.eslintrc*
+**/*.map
+**/*.ts
+!out/**
+node_modules/**
